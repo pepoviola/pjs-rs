@@ -1,0 +1,22 @@
+[package]
+name = "pjs-rs"
+version = "0.1.0"
+edition = "2021"
+authors = ["Javier Viola <crates@javierviola.com>"]
+repository = "https://github.com/pepoviola/pjs-rs"
+keywords = [ "polkadotjs", "runtime", "cli" ]
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[dependencies]
+deno_ast = { version = "0.31", features = ["transpiling"] }
+deno_core = "0.229.0"
+tokio = { version = "1.28.0", features = ["full"] }
+deno_console = "0.123.0"
+deno_fetch = "0.147.0"
+deno_url = "0.123.0"
+deno_web = "0.154.0"
+deno_webidl = "0.123.0"
+deno_websocket = "0.128.0"
+deno_crypto = "0.137.0"
+deno_tls = "0.110.0"
+log = "0.4"
