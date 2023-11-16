@@ -2,10 +2,10 @@
 const endpoint = arguments[0];
 const seed = arguments[1];
 
-const api = await pjs.api.ApiPromise.create({ provider: new pjs.api.WsProvider(endpoint) });
-await pjs.utilCrypto.cryptoWaitReady();
-const keyring = new pjs.keyring.Keyring({ type: "sr25519" });
-const signer = keyring.addFromUri(seed);
+const api = await ApiPromise.create({ provider: new pjs.api.WsProvider(endpoint) });
+await utilCrypto.cryptoWaitReady();
+const k = new keyring.Keyring({ type: "sr25519" });
+const signer = k.addFromUri(seed);
 
 // Make a transfer from Alice to Bob and listen to system events.
 // You need to be connected to a development chain for this example to work.
