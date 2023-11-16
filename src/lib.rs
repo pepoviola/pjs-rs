@@ -10,6 +10,9 @@ use deno_core::serde_json;
 use deno_core::serde_json::json;
 use deno_core::serde_v8;
 use deno_core::v8;
+use deno_ast::MediaType;
+use deno_ast::ParseParams;
+use deno_ast::SourceTextInfo;
 
 use deno_tls::rustls::RootCertStore;
 
@@ -23,7 +26,19 @@ mod ext;
 use ext::pjs_extension;
 
 
-pub type DynLoader = Rc<dyn deno_core::ModuleLoader + 'static>;
+type DynLoader = Rc<dyn deno_core::ModuleLoader + 'static>;
+
+#[derive(Debug, PartialEq)]
+/// Js script return value, mapping types that can be deserialized as [serde_json::Value] or
+/// not, for the latest an string is returned witht the error message.
+pub enum ReturnValue {
+    Deserialized(serde_json::Value),
+    CantDeserialize(String),
+}
+
+/// Create a new runtime with the pjs extension built-in.
+/// Allow to pass a [ModuleLoader](deno_core::ModuleLoader) to use, by default
+/// [NoopModuleLoader](deno_core::NoopModuleLoader) is used.
 pub fn create_runtime_with_loader(loader: Option<DynLoader>) -> JsRuntime {
     let js_runtime = deno_core::JsRuntime::new(deno_core::RuntimeOptions {
         module_loader: if let Some(loader) = loader { Some(loader) } else {Some(Rc::new(deno_core::NoopModuleLoader))},
@@ -57,30 +72,83 @@ pub fn create_runtime_with_loader(loader: Option<DynLoader>) -> JsRuntime {
 }
 
 
-#[derive(Debug, PartialEq)]
-pub enum ReturnValue {
-    Deserialized(serde_json::Value),
-    CantDeserialize(String),
-}
-
-
-/// No loader
+/// Run a js/ts code from file in an isolated runtime with polkadotjs bundles embedded
+///
+/// The code runs in a closure where the `json_args` are passed as `arguments` array
+/// and the polkadotjs modules (util, utilCrypto, keyring, types) are exposed from the global `pjs` Object.
+/// `ApiPromise` and `WsProvider` are also availables to easy access.
+///
+/// All code is wrapped within an async closure,
+/// allowing access to api methods, keyring, types, util, utilCrypto.
+/// ```javascript
+/// (async (arguments, ApiPromise, WsProvider, util, utilCrypto, keyring, types) => {
+///   ... any user code is executed here ...
+/// })();
+/// ```
+///
+/// # Example
+/// ## Javascript file example
+/// ```javascript
+/// const api = await ApiPromise.create({ provider: new pjs.api.WsProvider('wss://rpc.polkadot.io') });
+/// const parachains = (await api.query.paras.parachains()) || [];
+/// console.log("parachain ids in polkadot:", parachains);
+/// return parachains.toJSON();
+/// ```
+/// NOTE: To return a value you need to **explicit** call `return <value>`
+///
+///
+///
+/// ## Executing:
+/// ```rust
+/// # use pjs_rs::run_file;
+/// # use deno_core::error::AnyError;
+/// # async fn example() -> Result<(), AnyError> {
+/// let resp = run_file("./testing/query_parachains.js", None).await?;
+/// # Ok(())
+/// # }
+/// ```
+///
+///
 pub async fn run_file(file_path: impl AsRef<Path>, json_args: Option<Vec<serde_json::Value>>) -> Result<ReturnValue, AnyError> {
     let mut js_runtime = create_runtime_with_loader(None);
+    //let media_type = MediaType::from_path(&file_path);
+    let content = fs::read_to_string(file_path.as_ref())?;
 
-    let code_content = fs::read_to_string(file_path)?;
+    // Check if we need to transpile (e.g .ts file)
+    let code_content = if let MediaType::TypeScript = MediaType::from_path(file_path.as_ref()) {
+        let parsed = deno_ast::parse_module(ParseParams {
+            specifier: format!("file///{}", file_path.as_ref().to_string_lossy()),
+            text_info: SourceTextInfo::from_string(content),
+            media_type: MediaType::TypeScript,
+            capture_tokens: false,
+            scope_analysis: false,
+            maybe_syntax: None,
+        })?;
+        parsed.transpile(&Default::default())?.text
+    } else {
+        content
+    };
+
+    // Check if we have args to pass
     let arg_to_pass = if let Some(json_value) = json_args {
         json_value
     } else {
         // just pass null
         vec![json!(serde_json::Value::Null)]
     };
+
+    // Code template
     let code = format!(
-    r#"(async (arguments) => {{
+    r#"
+    const {{ ApiPromise, WsProvider }} = pjs.api;
+    const {{ util, utilCrypto, keyring, types }} = pjs;
+    (async (arguments, ApiPromise, WsProvider, util, utilCrypto, keyring, types) => {{
         {}
-    }})({})"#,
+    }})({}, ApiPromise, WsProvider, util, utilCrypto, keyring, types)"#,
     code_content, json!(arg_to_pass));
     log::trace!("code: \n{}", code);
+
+    // Execution
     let executed = js_runtime.execute_script("name", deno_core::FastString::from(code))?;
     let resolved = js_runtime.resolve_value(executed).await;
     match resolved {
@@ -118,7 +186,7 @@ mod tests {
 
     #[tokio::test]
     async fn query_parachains_works() {
-        let resp = run_file("./testing/query_parachains.js", None).await.unwrap();
+        let resp = run_file("./testing/query_parachains.ts", None).await.unwrap();
         if let ReturnValue::Deserialized(value) = resp {
             let first_para_id = value.as_array().unwrap().first().unwrap().as_u64().unwrap();
             assert_eq!(first_para_id, 1000_u64);
