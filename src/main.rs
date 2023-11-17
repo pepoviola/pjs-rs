@@ -1,5 +1,5 @@
 use std::env;
-use pjs_rs::{run_file, ReturnValue};
+use pjs_rs::{run_file_with_wrap, ReturnValue};
 fn main() {
     let args = &env::args().collect::<Vec<String>>()[1..];
 
@@ -15,7 +15,7 @@ fn main() {
         .unwrap();
 
     tk_runtime.block_on(async {
-        let result = run_file(file_path, None).await;
+        let result = run_file_with_wrap(file_path, None).await;
         match result {
             Err(error) => {
                 eprintln!("error: {error}");

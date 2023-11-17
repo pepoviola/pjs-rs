@@ -71,6 +71,48 @@ pub fn create_runtime_with_loader(loader: Option<DynLoader>) -> JsRuntime {
     js_runtime
 }
 
+/// Run a js/ts code from file in an isolated runtime with polkadotjs bundles embedded
+///
+/// The code runs without any wrapping clousure, and the arguments are binded to the `pjs` Object,
+/// available as `pjs.arguments`. If you want to to use top level `await` you will need to wrap your
+/// code like we do in [run_file_with_wrap].
+///
+/// # Example
+/// ## Javascript file example
+/// ```javascript
+/// return pjs.api.consts.babe.epochDuration;
+/// ```
+/// NOTE: To return a value you need to **explicit** call `return <value>`
+///
+///
+///
+/// ## Executing:
+/// ```rust
+/// # use pjs_rs::run_file;
+/// # use deno_core::error::AnyError;
+/// # async fn example() -> Result<(), AnyError> {
+/// let resp = run_file("./testing/epoch_duration_rococo.js", None).await?;
+/// # Ok(())
+/// # }
+/// ```
+///
+///
+pub async fn run_file(file_path: impl AsRef<Path>, json_args: Option<Vec<serde_json::Value>>) -> Result<ReturnValue, AnyError> {
+    let mut js_runtime = create_runtime_with_loader(None);
+
+    let code_content = get_code(file_path).await?;
+
+    // Code template
+    let code = format!(
+    r#"
+    pjs.arguments = {};
+    {}
+    "#,
+    json!(json_args.unwrap_or_default()), code_content);
+
+    log::trace!("code: \n{}", code);
+    execute_script(&mut js_runtime, &code).await
+}
 
 /// Run a js/ts code from file in an isolated runtime with polkadotjs bundles embedded
 ///
@@ -100,18 +142,36 @@ pub fn create_runtime_with_loader(loader: Option<DynLoader>) -> JsRuntime {
 ///
 /// ## Executing:
 /// ```rust
-/// # use pjs_rs::run_file;
+/// # use pjs_rs::run_file_with_wrap;
 /// # use deno_core::error::AnyError;
 /// # async fn example() -> Result<(), AnyError> {
-/// let resp = run_file("./testing/query_parachains.js", None).await?;
+/// let resp = run_file_with_wrap("./testing/query_parachains.js", None).await?;
 /// # Ok(())
 /// # }
 /// ```
 ///
 ///
-pub async fn run_file(file_path: impl AsRef<Path>, json_args: Option<Vec<serde_json::Value>>) -> Result<ReturnValue, AnyError> {
+pub async fn run_file_with_wrap(file_path: impl AsRef<Path>, json_args: Option<Vec<serde_json::Value>>) -> Result<ReturnValue, AnyError> {
     let mut js_runtime = create_runtime_with_loader(None);
-    //let media_type = MediaType::from_path(&file_path);
+
+    let code_content = get_code(file_path).await?;
+
+    // Code template
+    let code = format!(
+    r#"
+    const {{ ApiPromise, WsProvider }} = pjs.api;
+    const {{ util, utilCrypto, keyring, types }} = pjs;
+    (async (arguments, ApiPromise, WsProvider, util, utilCrypto, keyring, types) => {{
+        {}
+    }})({}, ApiPromise, WsProvider, util, utilCrypto, keyring, types)"#,
+    code_content, json!(json_args.unwrap_or_default()));
+
+    log::trace!("code: \n{}", code);
+    execute_script(&mut js_runtime, &code).await
+}
+
+
+async fn get_code(file_path: impl AsRef<Path>) -> Result<String, AnyError> {
     let content = fs::read_to_string(file_path.as_ref())?;
 
     // Check if we need to transpile (e.g .ts file)
@@ -129,27 +189,12 @@ pub async fn run_file(file_path: impl AsRef<Path>, json_args: Option<Vec<serde_j
         content
     };
 
-    // Check if we have args to pass
-    let arg_to_pass = if let Some(json_value) = json_args {
-        json_value
-    } else {
-        // just pass null
-        vec![json!(serde_json::Value::Null)]
-    };
+    Ok(code_content)
+}
 
-    // Code template
-    let code = format!(
-    r#"
-    const {{ ApiPromise, WsProvider }} = pjs.api;
-    const {{ util, utilCrypto, keyring, types }} = pjs;
-    (async (arguments, ApiPromise, WsProvider, util, utilCrypto, keyring, types) => {{
-        {}
-    }})({}, ApiPromise, WsProvider, util, utilCrypto, keyring, types)"#,
-    code_content, json!(arg_to_pass));
-    log::trace!("code: \n{}", code);
-
+async fn execute_script(js_runtime: &mut JsRuntime, code: impl Into<String>) -> Result<ReturnValue, AnyError> {
     // Execution
-    let executed = js_runtime.execute_script("name", deno_core::FastString::from(code))?;
+    let executed = js_runtime.execute_script("name", deno_core::FastString::from(code.into()))?;
     let resolved = js_runtime.resolve_value(executed).await;
     match resolved {
         Ok(global) => {
@@ -186,7 +231,28 @@ mod tests {
 
     #[tokio::test]
     async fn query_parachains_works() {
-        let resp = run_file("./testing/query_parachains.ts", None).await.unwrap();
+        let resp = run_file_with_wrap("./testing/query_parachains.ts", None).await.unwrap();
+        if let ReturnValue::Deserialized(value) = resp {
+            let first_para_id = value.as_array().unwrap().first().unwrap().as_u64().unwrap();
+            assert_eq!(first_para_id, 1000_u64);
+        }
+    }
+
+    #[tokio::test]
+    async fn consts_works() {
+        let resp = run_file("./testing/epoch_duration_rococo.js", None).await.unwrap();
+
+        println!("{:#?}",resp);
+        assert!(matches!(resp, ReturnValue::Deserialized { .. }));
+        if let ReturnValue::Deserialized(value) = resp {
+            assert_eq!(value, json!(600));
+        }
+    }
+
+    #[tokio::test]
+    async fn query_parachains_without_wrap_works() {
+        let resp = run_file("./testing/query_parachains_no_wrap.ts", None).await.unwrap();
+        assert!(matches!(resp, ReturnValue::Deserialized { .. }));
         if let ReturnValue::Deserialized(value) = resp {
             let first_para_id = value.as_array().unwrap().first().unwrap().as_u64().unwrap();
             assert_eq!(first_para_id, 1000_u64);
@@ -195,17 +261,17 @@ mod tests {
 
     #[tokio::test]
     async fn query_historic_data_rococo_works() {
-        run_file("./testing/query_historic_data.js", None).await.unwrap();
+        run_file_with_wrap("./testing/query_historic_data.js", None).await.unwrap();
     }
 
     #[tokio::test]
     async fn query_chain_state_info_rococo_works() {
-        run_file("./testing/get_chain_state_info.js", Some(vec![json!("wss://rococo-rpc.polkadot.io")])).await.unwrap();
+        run_file_with_wrap("./testing/get_chain_state_info.js", Some(vec![json!("wss://rococo-rpc.polkadot.io")])).await.unwrap();
     }
 
     #[tokio::test]
     async fn listen_new_head_works() {
-        let resp = run_file("./testing/rpc_listen_new_head.js", Some(vec![json!("wss://rococo-rpc.polkadot.io")])).await.unwrap();
+        let resp = run_file_with_wrap("./testing/rpc_listen_new_head.js", Some(vec![json!("wss://rococo-rpc.polkadot.io")])).await.unwrap();
         assert_eq!(resp, ReturnValue::Deserialized(json!(5)));
     }
 
@@ -215,6 +281,6 @@ mod tests {
             json!("wss://rococo-rpc.polkadot.io"),
             json!("//Alice"),
         ];
-        run_file("./testing/transfer.js", Some(args)).await.unwrap();
+        run_file_with_wrap("./testing/transfer.js", Some(args)).await.unwrap();
     }
 }
