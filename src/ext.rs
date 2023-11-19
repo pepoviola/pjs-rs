@@ -1,6 +1,6 @@
+use crate::perms::ZombiePermissions;
 use deno_core::error::AnyError;
 use deno_core::op2;
-use crate::perms::ZombiePermissions;
 
 #[op2(async)]
 async fn op_set_timeout(#[bigint] delay: u64) -> Result<(), AnyError> {
@@ -10,10 +10,8 @@ async fn op_set_timeout(#[bigint] delay: u64) -> Result<(), AnyError> {
 
 deno_core::extension!(
     pjs_extension,
-    deps = [ deno_url, deno_web, deno_websocket, deno_crypto ],
-    ops = [
-        op_set_timeout
-    ],
+    deps = [deno_url, deno_web, deno_websocket, deno_crypto],
+    ops = [op_set_timeout],
     esm_entry_point = "ext:pjs_extension/src/runtime.js",
     esm = [
         "src/js/06_util.js",
@@ -22,6 +20,5 @@ deno_core::extension!(
     ],
     state = |state| {
         state.put(ZombiePermissions {});
-
     }
 );

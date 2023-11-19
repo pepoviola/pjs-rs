@@ -1,5 +1,5 @@
-use std::env;
 use pjs_rs::{run_file_with_wrap, ReturnValue};
+use std::env;
 fn main() {
     let args = &env::args().collect::<Vec<String>>()[1..];
 

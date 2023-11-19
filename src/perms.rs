@@ -26,7 +26,7 @@ impl WebSocketPermissions for ZombiePermissions {
         &mut self,
         _url: &deno_core::url::Url,
         _api_name: &str,
-      ) -> Result<(), AnyError> {
+    ) -> Result<(), AnyError> {
         Ok(())
     }
 }
