@@ -11,11 +11,10 @@ async fn op_set_timeout(#[bigint] delay: u64) -> Result<(), AnyError> {
 deno_core::extension!(
     pjs_extension,
     deps = [deno_url, deno_web, deno_websocket, deno_crypto],
-    ops = [op_set_timeout],
     esm_entry_point = "ext:pjs_extension/src/runtime.js",
     esm = [
         "src/js/06_util.js",
-        "src/js/pjs_bundle.js",
+        "src/js/07.js",
         "src/runtime.js",
     ],
     state = |state| {

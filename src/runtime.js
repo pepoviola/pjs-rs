@@ -32,6 +32,9 @@ import * as f23 from "ext:deno_fetch/23_request.js";
 import * as f233 from "ext:deno_fetch/23_response.js";
 import * as f26 from "ext:deno_fetch/26_fetch.js";
 import * as f27 from "ext:deno_fetch/27_eventsource.js";
+import * as crypto from "ext:deno_crypto/00_crypto.js";
+import * as w16 from "ext:deno_web/16_image_data.js";
+
 
 // utils
 import {nonEnumerable, getterOnly, writable, readOnly} from "ext:pjs_extension/src/js/06_util.js";
@@ -67,14 +70,6 @@ const console = {
 globalThis.console.log = console.log;
 globalThis.console.error = console.error;
 
-
-
-// Fix timeout (NOTE: make an isolated case to deno_core)
-globalThis.setTimeout = (callback, delay) => {
-  core.opAsync("op_set_timeout", delay).then(callback);
-};
-
-
 const globalScope = {
   // URL
   URL: nonEnumerable(url.URL),
@@ -85,26 +80,26 @@ const globalScope = {
   clearInterval: writable(timers.clearInterval),
   clearTimeout: writable(timers.clearTimeout),
   setInterval: writable(timers.setInterval),
-//  setTimeout: writable(timers.setTimeout),
+  setTimeout: writable(timers.setTimeout),
 
 	// crypto
 	CryptoKey: nonEnumerable(crypto.CryptoKey),
 	crypto: readOnly(crypto.crypto),
 	Crypto: nonEnumerable(crypto.Crypto),
 	SubtleCrypto: nonEnumerable(crypto.SubtleCrypto),
+
+
+  location: nonEnumerable(location.locationDescriptor),
+
+// import * as webSocket from "ext:deno_websocket/01_websocket.js";
+  WebSocket: nonEnumerable(webSocket.WebSocket),
+
+
 }
 ObjectDefineProperties(globalThis, globalScope);
 
-
-// include the pjs bundle and expose under `pjs` object.
-import * as _ from "ext:pjs_extension/src/js/pjs_bundle.js";
-globalThis.pjs = {
-  util: polkadotUtil,
-  utilCrypto: polkadotUtilCrypto,
-  keyring: polkadotKeyring,
-  types: polkadotTypes,
-  api: polkadotApi,
-}
+// set some needed apis
+import * as _ from "ext:pjs_extension/src/js/07.js"
 
 // Delete bootstrap
 delete globalThis.__bootstrap;

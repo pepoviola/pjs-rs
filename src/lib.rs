@@ -10,16 +10,17 @@ use deno_core::error::AnyError;
 use deno_core::serde_json;
 use deno_core::serde_json::json;
 use deno_core::serde_v8;
+use deno_core::url;
 use deno_core::v8;
 use deno_core::JsRuntime;
 
-use deno_tls::rustls::RootCertStore;
 
 mod perms;
 use perms::ZombiePermissions;
 
-mod cert;
-use cert::ValueRootCertStoreProvider;
+// Not used anymore
+// mod cert;
+// use cert::ValueRootCertStoreProvider;
 
 mod ext;
 use ext::pjs_extension;
@@ -54,19 +55,15 @@ pub fn create_runtime_with_loader(loader: Option<DynLoader>) -> JsRuntime {
                 None,
             ),
             deno_crypto::deno_crypto::init_ops_and_esm(None),
-            deno_fetch::deno_fetch::init_ops_and_esm::<ZombiePermissions>(deno_fetch::Options {
+            deno_fetch::deno_fetch::init_ops_and_esm::<ZombiePermissions>(
+                deno_fetch::Options {
                 user_agent: "zombienet-agent".to_string(),
-                root_cert_store_provider: Some(Arc::new(ValueRootCertStoreProvider(
-                    RootCertStore::empty(),
-                ))),
-                unsafely_ignore_certificate_errors: Some(vec![]),
-                file_fetch_handler: Rc::new(deno_fetch::FsFetchHandler),
                 ..Default::default()
             }),
             deno_websocket::deno_websocket::init_ops_and_esm::<ZombiePermissions>(
                 "zombienet-agent".to_string(),
-                Some(Arc::new(ValueRootCertStoreProvider(RootCertStore::empty()))),
-                Some(vec![]),
+                None,
+                None,
             ),
             pjs_extension::init_ops_and_esm(),
         ],
@@ -172,7 +169,7 @@ pub async fn run_ts_code(
 
 fn transpile(code: impl Into<String>) -> Result<String, AnyError> {
     let parsed = deno_ast::parse_module(ParseParams {
-        specifier: format!("file///inner"),
+        specifier: url::Url::parse("file:///inner")?,
         text_info: SourceTextInfo::from_string(code.into()),
         media_type: MediaType::TypeScript,
         capture_tokens: false,
@@ -180,7 +177,8 @@ fn transpile(code: impl Into<String>) -> Result<String, AnyError> {
         maybe_syntax: None,
     })?;
 
-    Ok(parsed.transpile(&Default::default())?.text)
+    let transpiled = parsed.transpile(&Default::default(), &Default::default())?;
+    Ok(transpiled.into_source().text)
 }
 async fn get_code(file_path: impl AsRef<Path>) -> Result<String, AnyError> {
     let content = fs::read_to_string(file_path.as_ref())?;
@@ -201,7 +199,11 @@ async fn run_code(
     use_wrapper: bool,
 ) -> Result<ReturnValue, AnyError> {
     let code_content = code_content.into();
-
+    let bundle_util = include_str!("js/bundle-polkadot-util.js");
+    let bundle_util_crypto = include_str!("js/bundle-polkadot-util-crypto.js");
+    let bundle_keyring = include_str!("js/bundle-polkadot-keyring.js");
+    let bundle_types = include_str!("js/bundle-polkadot-types.js");
+    let bundle_api = include_str!("js/bundle-polkadot-api.js");
     // Code templates
     let code = if use_wrapper {
         format!(
@@ -228,7 +230,25 @@ async fn run_code(
     log::trace!("code: \n{}", code);
 
     let mut js_runtime = create_runtime_with_loader(None);
-    execute_script(&mut js_runtime, &code).await
+    let with_bundle = format!("
+    {}
+    {}
+    {}
+    {}
+    {}
+
+    let pjs = {{
+        util: polkadotUtil,
+        utilCrypto: polkadotUtilCrypto,
+        keyring: polkadotKeyring,
+        types: polkadotTypes,
+        api: polkadotApi,
+    }};
+
+    {}
+    ", bundle_util, bundle_util_crypto, bundle_keyring, bundle_types, bundle_api, code);
+    log::trace!("full code: \n{}", with_bundle);
+    execute_script(&mut js_runtime, &with_bundle).await
 }
 async fn execute_script(
     js_runtime: &mut JsRuntime,
@@ -236,7 +256,8 @@ async fn execute_script(
 ) -> Result<ReturnValue, AnyError> {
     // Execution
     let executed = js_runtime.execute_script("name", deno_core::FastString::from(code.into()))?;
-    let resolved = js_runtime.resolve_value(executed).await;
+    let resolve = js_runtime.resolve(executed);
+    let resolved = js_runtime.with_event_loop_promise(resolve, deno_core::PollEventLoopOptions::default()).await;
     match resolved {
         Ok(global) => {
             let scope = &mut js_runtime.handle_scope();
@@ -300,6 +321,7 @@ mod tests {
             .unwrap();
         assert!(matches!(resp, ReturnValue::Deserialized { .. }));
         if let ReturnValue::Deserialized(value) = resp {
+            println!("{:?}",value);
             let first_para_id = value.as_array().unwrap().first().unwrap().as_u64().unwrap();
             assert_eq!(first_para_id, 1000_u64);
         }
