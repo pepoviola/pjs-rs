@@ -12,7 +12,7 @@ env:
 
 jobs:
   build-rust-doc:
-    name: Zombienet SDK - Rust Docs
+    name: pjs-rs - Rust Docs
     runs-on: ubuntu-latest
     strategy:
       matrix:
