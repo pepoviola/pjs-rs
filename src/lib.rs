@@ -38,8 +38,6 @@ pub enum ReturnValue {
 /// Allow to pass a [ModuleLoader](deno_core::ModuleLoader) to use, by default
 /// [NoopModuleLoader](deno_core::NoopModuleLoader) is used.
 pub fn create_runtime_with_loader(loader: Option<DynLoader>) -> JsRuntime {
-    
-
     deno_core::JsRuntime::new(deno_core::RuntimeOptions {
         module_loader: if let Some(loader) = loader {
             Some(loader)
