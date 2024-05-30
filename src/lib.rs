@@ -14,7 +14,6 @@ use deno_core::url;
 use deno_core::v8;
 use deno_core::JsRuntime;
 
-
 mod perms;
 use perms::ZombiePermissions;
 
@@ -39,7 +38,7 @@ pub enum ReturnValue {
 /// Allow to pass a [ModuleLoader](deno_core::ModuleLoader) to use, by default
 /// [NoopModuleLoader](deno_core::NoopModuleLoader) is used.
 pub fn create_runtime_with_loader(loader: Option<DynLoader>) -> JsRuntime {
-    let js_runtime = deno_core::JsRuntime::new(deno_core::RuntimeOptions {
+    deno_core::JsRuntime::new(deno_core::RuntimeOptions {
         module_loader: if let Some(loader) = loader {
             Some(loader)
         } else {
@@ -55,8 +54,7 @@ pub fn create_runtime_with_loader(loader: Option<DynLoader>) -> JsRuntime {
                 None,
             ),
             deno_crypto::deno_crypto::init_ops_and_esm(None),
-            deno_fetch::deno_fetch::init_ops_and_esm::<ZombiePermissions>(
-                deno_fetch::Options {
+            deno_fetch::deno_fetch::init_ops_and_esm::<ZombiePermissions>(deno_fetch::Options {
                 user_agent: "zombienet-agent".to_string(),
                 ..Default::default()
             }),
@@ -68,9 +66,7 @@ pub fn create_runtime_with_loader(loader: Option<DynLoader>) -> JsRuntime {
             pjs_extension::init_ops_and_esm(),
         ],
         ..Default::default()
-    });
-
-    js_runtime
+    })
 }
 
 /// Run a js/ts code from file in an isolated runtime with polkadotjs bundles embedded
@@ -230,7 +226,8 @@ async fn run_code(
     log::trace!("code: \n{}", code);
 
     let mut js_runtime = create_runtime_with_loader(None);
-    let with_bundle = format!("
+    let with_bundle = format!(
+        "
     {}
     {}
     {}
@@ -246,7 +243,9 @@ async fn run_code(
     }};
 
     {}
-    ", bundle_util, bundle_util_crypto, bundle_keyring, bundle_types, bundle_api, code);
+    ",
+        bundle_util, bundle_util_crypto, bundle_keyring, bundle_types, bundle_api, code
+    );
     log::trace!("full code: \n{}", with_bundle);
     execute_script(&mut js_runtime, &with_bundle).await
 }
@@ -257,7 +256,9 @@ async fn execute_script(
     // Execution
     let executed = js_runtime.execute_script("name", deno_core::FastString::from(code.into()))?;
     let resolve = js_runtime.resolve(executed);
-    let resolved = js_runtime.with_event_loop_promise(resolve, deno_core::PollEventLoopOptions::default()).await;
+    let resolved = js_runtime
+        .with_event_loop_promise(resolve, deno_core::PollEventLoopOptions::default())
+        .await;
     match resolved {
         Ok(global) => {
             let scope = &mut js_runtime.handle_scope();
@@ -321,7 +322,7 @@ mod tests {
             .unwrap();
         assert!(matches!(resp, ReturnValue::Deserialized { .. }));
         if let ReturnValue::Deserialized(value) = resp {
-            println!("{:?}",value);
+            println!("{:?}", value);
             let first_para_id = value.as_array().unwrap().first().unwrap().as_u64().unwrap();
             assert_eq!(first_para_id, 1000_u64);
         }
@@ -337,9 +338,7 @@ mod tests {
             return parachains.toJSON();
         })();
         "#;
-        let resp = run_ts_code(ts_code, None)
-            .await
-            .unwrap();
+        let resp = run_ts_code(ts_code, None).await.unwrap();
         assert!(matches!(resp, ReturnValue::Deserialized { .. }));
         if let ReturnValue::Deserialized(value) = resp {
             let first_para_id = value.as_array().unwrap().first().unwrap().as_u64().unwrap();
@@ -357,9 +356,7 @@ mod tests {
             return parachains.toJSON();
         })();
         "#;
-        let resp = run_ts_code(ts_code, None)
-            .await
-            .unwrap();
+        let resp = run_ts_code(ts_code, None).await.unwrap();
         assert!(matches!(resp, ReturnValue::Deserialized { .. }));
         if let ReturnValue::Deserialized(value) = resp {
             let first_para_id = value.as_array().unwrap().first().unwrap().as_u64().unwrap();
