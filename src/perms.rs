@@ -1,10 +1,12 @@
-use std::path::Path;
+use std::borrow::Cow;
+use std::path::{Path, PathBuf};
 
-use deno_core::error::AnyError;
 use deno_core::url::Url;
 use deno_fetch::FetchPermissions;
+use deno_net::NetPermissions;
 use deno_web::TimersPermission;
 use deno_websocket::WebSocketPermissions;
+use deno_permissions::PermissionCheckError;
 
 pub struct ZombiePermissions;
 
@@ -26,16 +28,34 @@ impl WebSocketPermissions for ZombiePermissions {
         &mut self,
         _url: &deno_core::url::Url,
         _api_name: &str,
-    ) -> Result<(), AnyError> {
+    ) -> Result<(), PermissionCheckError> {
         Ok(())
     }
 }
 
 impl FetchPermissions for ZombiePermissions {
-    fn check_net_url(&mut self, _url: &Url, _api_name: &str) -> Result<(), AnyError> {
+    fn check_net_url(&mut self, _url: &Url, _api_name: &str) -> Result<(), PermissionCheckError> {
         Ok(())
     }
-    fn check_read(&mut self, _p: &Path, _api_name: &str) -> Result<(), AnyError> {
+    fn check_read<'a>(&mut self, p: &'a Path, _api_name: &str) -> Result<Cow<'a, Path>, PermissionCheckError> {
+        Ok(p.into())
+    }
+}
+
+impl NetPermissions for ZombiePermissions {
+    fn check_net<T: AsRef<str>>(&mut self, _host: &(T, Option<u16>), _api_name: &str) -> Result<(), PermissionCheckError> {
         Ok(())
+    }
+
+    fn check_read(&mut self, p: &str, _api_name: &str) -> Result<PathBuf, PermissionCheckError> {
+        Ok(p.into())
+    }
+
+    fn check_write(&mut self, p: &str, _api_name: &str) -> Result<PathBuf, PermissionCheckError> {
+        Ok(p.into())
+    }
+
+    fn check_write_path<'a>(&mut self, p: &'a Path, _api_name: &str) -> Result<Cow<'a, Path>, PermissionCheckError> {
+        Ok(p.into())
     }
 }
