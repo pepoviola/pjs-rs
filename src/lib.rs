@@ -375,7 +375,7 @@ mod tests {
     async fn query_chain_state_info_rococo_works() {
         run_file_with_wrap(
             "./testing/get_chain_state_info.js",
-            Some(vec![json!("wss://rococo-rpc.polkadot.io")]),
+            Some(vec![json!("wss://paseo-rpc.dwellir.com")]),
         )
         .await
         .unwrap();
@@ -385,7 +385,7 @@ mod tests {
     async fn listen_new_head_works() {
         let resp = run_file_with_wrap(
             "./testing/rpc_listen_new_head.js",
-            Some(vec![json!("wss://rococo-rpc.polkadot.io")]),
+            Some(vec![json!("wss://paseo-rpc.dwellir.com")]),
         )
         .await
         .unwrap();
@@ -394,9 +394,20 @@ mod tests {
 
     #[tokio::test]
     async fn transfer_works() {
-        let args = vec![json!("wss://rococo-rpc.polkadot.io"), json!("//Alice")];
-        run_file_with_wrap("./testing/transfer.js", Some(args))
+        let args = vec![json!("wss://paseo-rpc.dwellir.com"), json!("//Alice")];
+        let resp = run_file_with_wrap("./testing/transfer.js", Some(args.clone()))
             .await
             .unwrap();
+
+        assert!(matches!(resp, ReturnValue::Deserialized { .. }));
+
+        if let ReturnValue::Deserialized(value) = resp {
+            let amount = value.as_u64().unwrap();
+            println!("Returning {amount:?} to Bob");
+            let args = [args,vec![json!(amount)]].concat();
+            run_file_with_wrap("./testing/transfer.js", Some(args))
+            .await
+            .unwrap();
+        }
     }
 }
