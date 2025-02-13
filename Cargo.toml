@@ -10,14 +10,16 @@ description = "A javascript runtime with [pjs](https://github.com/polkadot-js) e
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [dependencies]
-deno_ast = { version = "0.38", features = ["transpiling"] }
-deno_core = "0.272.0"
+deno_ast = { version = "0.43.3", features = ["transpiling"] }
+deno_core = "0.321.0"
+deno_permissions = "0.39.0"
+deno_console = "0.179.0"
+deno_webidl = "0.179.0"
+deno_fetch = "0.203.0"
+deno_crypto = "0.193.0"
+deno_url = "0.179.0"
+deno_web = "0.210.0"
+deno_websocket = "0.184.0"
+deno_net = "0.171.0"
+log = "0.4.22"
 tokio = { version = "1.37.0", features = ["full"] }
-deno_console = "0.143.0"
-deno_webidl = "0.144.0"
-deno_fetch = "0.167.0"
-deno_crypto = "0.157.0"
-deno_url = "0.143.0"
-deno_web = "0.174.0"
-deno_websocket = "0.149.0"
-log = "0.4.21"

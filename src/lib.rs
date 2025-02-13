@@ -5,7 +5,6 @@ use std::sync::Arc;
 
 use deno_ast::MediaType;
 use deno_ast::ParseParams;
-use deno_ast::SourceTextInfo;
 use deno_core::error::AnyError;
 use deno_core::serde_json;
 use deno_core::serde_json::json;
@@ -58,6 +57,7 @@ pub fn create_runtime_with_loader(loader: Option<DynLoader>) -> JsRuntime {
                 user_agent: "zombienet-agent".to_string(),
                 ..Default::default()
             }),
+            deno_net::deno_net::init_ops_and_esm::<ZombiePermissions>(None, None),
             deno_websocket::deno_websocket::init_ops_and_esm::<ZombiePermissions>(
                 "zombienet-agent".to_string(),
                 None,
@@ -166,14 +166,14 @@ pub async fn run_ts_code(
 fn transpile(code: impl Into<String>) -> Result<String, AnyError> {
     let parsed = deno_ast::parse_module(ParseParams {
         specifier: url::Url::parse("file:///inner")?,
-        text_info: SourceTextInfo::from_string(code.into()),
+        text: Arc::from(code.into()),
         media_type: MediaType::TypeScript,
         capture_tokens: false,
         scope_analysis: false,
         maybe_syntax: None,
     })?;
 
-    let transpiled = parsed.transpile(&Default::default(), &Default::default())?;
+    let transpiled = parsed.transpile(&Default::default(), &Default::default(), &Default::default())?;
     Ok(transpiled.into_source().text)
 }
 async fn get_code(file_path: impl AsRef<Path>) -> Result<String, AnyError> {
