@@ -37,7 +37,7 @@ pub enum ReturnValue {
 /// Allow to pass a [ModuleLoader](deno_core::ModuleLoader) to use, by default
 /// [NoopModuleLoader](deno_core::NoopModuleLoader) is used.
 pub fn create_runtime_with_loader(loader: Option<DynLoader>) -> JsRuntime {
-    deno_core::JsRuntime::new(deno_core::RuntimeOptions {
+    JsRuntime::new(deno_core::RuntimeOptions {
         module_loader: if let Some(loader) = loader {
             Some(loader)
         } else {
@@ -45,6 +45,7 @@ pub fn create_runtime_with_loader(loader: Option<DynLoader>) -> JsRuntime {
         },
         startup_snapshot: None,
         extensions: vec![
+            deno_telemetry::deno_telemetry::init_ops_and_esm(),
             deno_console::deno_console::init_ops_and_esm(),
             deno_webidl::deno_webidl::init_ops_and_esm(),
             deno_url::deno_url::init_ops_and_esm(),
@@ -65,6 +66,9 @@ pub fn create_runtime_with_loader(loader: Option<DynLoader>) -> JsRuntime {
             ),
             pjs_extension::init_ops_and_esm(),
         ],
+        extension_transpiler: Some(Rc::new(|specifier, source| {
+            deno_runtime::transpile::maybe_transpile_source(specifier, source)
+        })),
         ..Default::default()
     })
 }
@@ -286,7 +290,7 @@ async fn execute_script(
         }
         Err(err) => {
             log::error!("{}", format!("Evaling error: {:?}", err));
-            Err(err)
+            Err(err.into())
         }
     }
 }

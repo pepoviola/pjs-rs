@@ -1,9 +1,9 @@
 use crate::perms::ZombiePermissions;
-use deno_core::error::AnyError;
+use deno_core::error::CoreError;
 use deno_core::op2;
 
 #[op2(async)]
-async fn op_set_timeout(#[bigint] delay: u64) -> Result<(), AnyError> {
+async fn op_set_timeout(#[bigint] delay: u64) -> Result<(), CoreError> {
     tokio::time::sleep(std::time::Duration::from_millis(delay)).await;
     Ok(())
 }
