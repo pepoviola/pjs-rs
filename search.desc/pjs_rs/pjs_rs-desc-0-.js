@@ -1,0 +1,1 @@
+searchState.loadedDescShard("pjs_rs", 0, "Js script return value, mapping types that can be …\nCreate a new runtime with the pjs extension built-in. …\nReturns the argument unchanged.\nCalls <code>U::from(self)</code>.\nRun a js/ts code from file in an isolated runtime with …\nRun a js/ts code from file in an isolated runtime with …")
