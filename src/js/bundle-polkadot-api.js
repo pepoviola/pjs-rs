@@ -119,14 +119,26 @@
         WS_URL
     };
 
-    const DEFAULT_CAPACITY = 128;
+    const DEFAULT_CAPACITY = 1024;
     class LRUNode {
         key;
+        __internal__expires;
+        __internal__ttl;
+        createdAt;
         next;
         prev;
-        constructor(key) {
+        constructor(key, ttl) {
             this.key = key;
+            this.__internal__ttl = ttl;
+            this.__internal__expires = Date.now() + ttl;
+            this.createdAt = Date.now();
             this.next = this.prev = this;
+        }
+        refresh() {
+            this.__internal__expires = Date.now() + this.__internal__ttl;
+        }
+        get expiry() {
+            return this.__internal__expires;
         }
     }
     class LRUCache {
@@ -136,9 +148,14 @@
         __internal__length = 0;
         __internal__head;
         __internal__tail;
-        constructor(capacity = DEFAULT_CAPACITY) {
+        __internal__ttl;
+        constructor(capacity = DEFAULT_CAPACITY, ttl = 30000) {
             this.capacity = capacity;
-            this.__internal__head = this.__internal__tail = new LRUNode('<empty>');
+            this.__internal__ttl = ttl;
+            this.__internal__head = this.__internal__tail = new LRUNode('<empty>', ttl);
+        }
+        get ttl() {
+            return this.__internal__ttl;
         }
         get length() {
             return this.__internal__length;
@@ -175,8 +192,10 @@
             const data = this.__internal__data.get(key);
             if (data) {
                 this.__internal__toHead(key);
+                this.__internal__evictTTL();
                 return data;
             }
+            this.__internal__evictTTL();
             return null;
         }
         set(key, value) {
@@ -184,7 +203,7 @@
                 this.__internal__toHead(key);
             }
             else {
-                const node = new LRUNode(key);
+                const node = new LRUNode(key, this.__internal__ttl);
                 this.__internal__refs.set(node.key, node);
                 if (this.length === 0) {
                     this.__internal__head = this.__internal__tail = node;
@@ -204,11 +223,25 @@
                     this.__internal__length += 1;
                 }
             }
+            this.__internal__evictTTL();
             this.__internal__data.set(key, value);
+        }
+        __internal__evictTTL() {
+            while (this.__internal__tail.expiry && this.__internal__tail.expiry < Date.now() && this.__internal__length > 0) {
+                this.__internal__refs.delete(this.__internal__tail.key);
+                this.__internal__data.delete(this.__internal__tail.key);
+                this.__internal__length -= 1;
+                this.__internal__tail = this.__internal__tail.prev;
+                this.__internal__tail.next = this.__internal__head;
+            }
+            if (this.__internal__length === 0) {
+                this.__internal__head = this.__internal__tail = new LRUNode('<empty>', this.__internal__ttl);
+            }
         }
         __internal__toHead(key) {
             const ref = this.__internal__refs.get(key);
             if (ref && ref !== this.__internal__head) {
+                ref.refresh();
                 ref.prev.next = ref.next;
                 ref.next.prev = ref.prev;
                 ref.next = this.__internal__head;
@@ -221,18 +254,21 @@
     const ERROR_SUBSCRIBE = 'HTTP Provider does not have subscriptions, use WebSockets instead';
     const l$7 = util.logger('api-http');
     class HttpProvider {
-        __internal__callCache = new LRUCache();
+        __internal__callCache;
+        __internal__cacheCapacity;
         __internal__coder;
         __internal__endpoint;
         __internal__headers;
         __internal__stats;
-        constructor(endpoint = defaults.HTTP_URL, headers = {}) {
+        constructor(endpoint = defaults.HTTP_URL, headers = {}, cacheCapacity) {
             if (!/^(https|http):\/\//.test(endpoint)) {
                 throw new Error(`Endpoint should start with 'http://' or 'https://', received '${endpoint}'`);
             }
             this.__internal__coder = new RpcCoder();
             this.__internal__endpoint = endpoint;
             this.__internal__headers = headers;
+            this.__internal__callCache = new LRUCache(cacheCapacity === 0 ? 0 : cacheCapacity || DEFAULT_CAPACITY);
+            this.__internal__cacheCapacity = cacheCapacity === 0 ? 0 : cacheCapacity || DEFAULT_CAPACITY;
             this.__internal__stats = {
                 active: { requests: 0, subscriptions: 0 },
                 total: { bytesRecv: 0, bytesSent: 0, cached: 0, errors: 0, requests: 0, subscriptions: 0, timeout: 0 }
@@ -264,6 +300,9 @@
         async send(method, params, isCacheable) {
             this.__internal__stats.total.requests++;
             const [, body] = this.__internal__coder.encodeJson(method, params);
+            if (this.__internal__cacheCapacity === 0) {
+                return this.__internal__send(body);
+            }
             const cacheKey = isCacheable ? `${method}::${util.stringify(params)}` : '';
             let resultPromise = isCacheable
                 ? this.__internal__callCache.get(cacheKey)
@@ -991,9 +1030,9 @@
         chain_subscribeFinalisedHeads: 'chain_subscribeFinalizedHeads',
         chain_unsubscribeFinalisedHeads: 'chain_unsubscribeFinalizedHeads'
     };
-    const RETRY_DELAY = 2500;
+    const RETRY_DELAY = 2_500;
     const DEFAULT_TIMEOUT_MS = 60 * 1000;
-    const TIMEOUT_INTERVAL = 5000;
+    const TIMEOUT_INTERVAL = 5_000;
     const l$5 = util.logger('api-ws');
     function eraseRecord(record, cb) {
         Object.keys(record).forEach((key) => {
@@ -1016,6 +1055,7 @@
         __internal__isReadyPromise;
         __internal__stats;
         __internal__waitingForId = {};
+        __internal__cacheCapacity;
         __internal__autoConnectMs;
         __internal__endpointIndex;
         __internal__endpointStats;
@@ -1037,6 +1077,7 @@
                 }
             });
             this.__internal__callCache = new LRUCache(cacheCapacity || DEFAULT_CAPACITY);
+            this.__internal__cacheCapacity = cacheCapacity || DEFAULT_CAPACITY;
             this.__internal__eventemitter = new EventEmitter();
             this.__internal__autoConnectMs = autoConnectMs || 0;
             this.__internal__coder = new RpcCoder();
@@ -1152,6 +1193,9 @@
             this.__internal__endpointStats.requests++;
             this.__internal__stats.total.requests++;
             const [id, body] = this.__internal__coder.encodeJson(method, params);
+            if (this.__internal__cacheCapacity === 0) {
+                return this.__internal__send(id, body, method, params, subscription);
+            }
             const cacheKey = isCacheable ? `${method}::${util.stringify(params)}` : '';
             let resultPromise = isCacheable
                 ? this.__internal__callCache.get(cacheKey)
@@ -1367,7 +1411,7 @@
         };
     }
 
-    const packageInfo = { name: '@polkadot/api', path: (({ url: (typeof document === 'undefined' && typeof location === 'undefined' ? require('u' + 'rl').pathToFileURL(__filename).href : typeof document === 'undefined' ? location.href : (_documentCurrentScript && _documentCurrentScript.src || new URL('bundle-polkadot-api.js', document.baseURI).href)) }) && (typeof document === 'undefined' && typeof location === 'undefined' ? require('u' + 'rl').pathToFileURL(__filename).href : typeof document === 'undefined' ? location.href : (_documentCurrentScript && _documentCurrentScript.src || new URL('bundle-polkadot-api.js', document.baseURI).href))) ? new URL((typeof document === 'undefined' && typeof location === 'undefined' ? require('u' + 'rl').pathToFileURL(__filename).href : typeof document === 'undefined' ? location.href : (_documentCurrentScript && _documentCurrentScript.src || new URL('bundle-polkadot-api.js', document.baseURI).href))).pathname.substring(0, new URL((typeof document === 'undefined' && typeof location === 'undefined' ? require('u' + 'rl').pathToFileURL(__filename).href : typeof document === 'undefined' ? location.href : (_documentCurrentScript && _documentCurrentScript.src || new URL('bundle-polkadot-api.js', document.baseURI).href))).pathname.lastIndexOf('/') + 1) : 'auto', type: 'esm', version: '11.1.1' };
+    const packageInfo = { name: '@polkadot/api', path: (({ url: (typeof document === 'undefined' && typeof location === 'undefined' ? require('u' + 'rl').pathToFileURL(__filename).href : typeof document === 'undefined' ? location.href : (_documentCurrentScript && _documentCurrentScript.src || new URL('bundle-polkadot-api.js', document.baseURI).href)) }) && (typeof document === 'undefined' && typeof location === 'undefined' ? require('u' + 'rl').pathToFileURL(__filename).href : typeof document === 'undefined' ? location.href : (_documentCurrentScript && _documentCurrentScript.src || new URL('bundle-polkadot-api.js', document.baseURI).href))) ? new URL((typeof document === 'undefined' && typeof location === 'undefined' ? require('u' + 'rl').pathToFileURL(__filename).href : typeof document === 'undefined' ? location.href : (_documentCurrentScript && _documentCurrentScript.src || new URL('bundle-polkadot-api.js', document.baseURI).href))).pathname.substring(0, new URL((typeof document === 'undefined' && typeof location === 'undefined' ? require('u' + 'rl').pathToFileURL(__filename).href : typeof document === 'undefined' ? location.href : (_documentCurrentScript && _documentCurrentScript.src || new URL('bundle-polkadot-api.js', document.baseURI).href))).pathname.lastIndexOf('/') + 1) : 'auto', type: 'esm', version: '15.5.2' };
 
     var extendStatics = function(d, b) {
       extendStatics = Object.setPrototypeOf ||
@@ -1392,8 +1436,8 @@
       });
     }
     function __generator(thisArg, body) {
-      var _ = { label: 0, sent: function() { if (t[0] & 1) throw t[1]; return t[1]; }, trys: [], ops: [] }, f, y, t, g;
-      return g = { next: verb(0), "throw": verb(1), "return": verb(2) }, typeof Symbol === "function" && (g[Symbol.iterator] = function() { return this; }), g;
+      var _ = { label: 0, sent: function() { if (t[0] & 1) throw t[1]; return t[1]; }, trys: [], ops: [] }, f, y, t, g = Object.create((typeof Iterator === "function" ? Iterator : Object).prototype);
+      return g.next = verb(0), g["throw"] = verb(1), g["return"] = verb(2), typeof Symbol === "function" && (g[Symbol.iterator] = function() { return this; }), g;
       function verb(n) { return function (v) { return step([n, v]); }; }
       function step(op) {
           if (f) throw new TypeError("Generator is already executing.");
@@ -1460,8 +1504,9 @@
     function __asyncGenerator(thisArg, _arguments, generator) {
       if (!Symbol.asyncIterator) throw new TypeError("Symbol.asyncIterator is not defined.");
       var g = generator.apply(thisArg, _arguments || []), i, q = [];
-      return i = {}, verb("next"), verb("throw"), verb("return"), i[Symbol.asyncIterator] = function () { return this; }, i;
-      function verb(n) { if (g[n]) i[n] = function (v) { return new Promise(function (a, b) { q.push([n, v, a, b]) > 1 || resume(n, v); }); }; }
+      return i = Object.create((typeof AsyncIterator === "function" ? AsyncIterator : Object).prototype), verb("next"), verb("throw"), verb("return", awaitReturn), i[Symbol.asyncIterator] = function () { return this; }, i;
+      function awaitReturn(f) { return function (v) { return Promise.resolve(v).then(f, reject); }; }
+      function verb(n, f) { if (g[n]) { i[n] = function (v) { return new Promise(function (a, b) { q.push([n, v, a, b]) > 1 || resume(n, v); }); }; if (f) i[n] = f(i[n]); } }
       function resume(n, v) { try { step(g[n](v)); } catch (e) { settle(q[0][3], e); } }
       function step(r) { r.value instanceof __await ? Promise.resolve(r.value.v).then(fulfill, reject) : settle(q[0][2], r); }
       function fulfill(value) { resume("next", value); }
@@ -3550,6 +3595,7 @@
             isMap: false
         }
     };
+    const RPC_CORE_DEFAULT_CAPACITY = 1024 * 10 * 10;
     function logErrorMessage(method, { noErrorLog, params, type }, error) {
         if (noErrorLog) {
             return;
@@ -3563,15 +3609,14 @@
         __internal__instanceId;
         __internal__isPedantic;
         __internal__registryDefault;
-        __internal__storageCache = new Map();
+        __internal__storageCache;
         __internal__storageCacheHits = 0;
-        __internal__storageCacheSize = 0;
         __internal__getBlockRegistry;
         __internal__getBlockHash;
         mapping = new Map();
         provider;
         sections = [];
-        constructor(instanceId, registry, { isPedantic = true, provider, userRpc = {} }) {
+        constructor(instanceId, registry, { isPedantic = true, provider, rpcCacheCapacity, userRpc = {} }) {
             if (!provider || !util.isFunction(provider.send)) {
                 throw new Error('Expected Provider to API create');
             }
@@ -3581,6 +3626,7 @@
             this.provider = provider;
             const sectionNames = Object.keys(types.rpcDefinitions);
             this.sections.push(...sectionNames);
+            this.__internal__storageCache = new LRUCache(rpcCacheCapacity || RPC_CORE_DEFAULT_CAPACITY);
             this.addUserInterfaces(userRpc);
         }
         get isConnected() {
@@ -3589,7 +3635,7 @@
         connect() {
             return this.provider.connect();
         }
-        disconnect() {
+        async disconnect() {
             return this.provider.disconnect();
         }
         get stats() {
@@ -3599,7 +3645,7 @@
                     ...stats,
                     core: {
                         cacheHits: this.__internal__storageCacheHits,
-                        cacheSize: this.__internal__storageCacheSize
+                        cacheSize: this.__internal__storageCache.length
                     }
                 }
                 : undefined;
@@ -3836,9 +3882,11 @@
                 ? value
                 : util.u8aToU8a(value);
             const codec = this._newType(registry, blockHash, key, input, isEmpty, entryIndex);
-            this.__internal__storageCache.set(hexKey, codec);
-            this.__internal__storageCacheSize++;
+            this._setToCache(hexKey, codec);
             return codec;
+        }
+        _setToCache(key, value) {
+            this.__internal__storageCache.set(key, value);
         }
         _newType(registry, blockHash, key, input, isEmpty, entryIndex = -1) {
             const type = key.outputType || 'Raw';
@@ -3878,7 +3926,7 @@
         set: (_, value) => value
     };
 
-    const CHACHE_EXPIRY = 7 * (24 * 60) * (60 * 1000);
+    const CACHE_EXPIRY = 7 * (24 * 60) * (60 * 1000);
     let deriveCache;
     function wrapCache(keyStart, cache) {
         return {
@@ -3903,7 +3951,7 @@
         const now = Date.now();
         const all = [];
         cache.forEach((key, { x }) => {
-            ((now - x) > CHACHE_EXPIRY) && all.push(key);
+            ((now - x) > CACHE_EXPIRY) && all.push(key);
         });
         all.forEach((key) => cache.del(key));
     }
@@ -3934,7 +3982,7 @@
                 ? address
                 : utilCrypto.decodeAddress((address || '').toString());
             if (decoded.length > 8) {
-                return of(api.registry.createType('AccountId', decoded));
+                return of(api.registry.createType(decoded.length === 20 ? 'AccountId20' : 'AccountId', decoded));
             }
             const accountIndex = api.registry.createType('AccountIndex', decoded);
             return api.derive.accounts.indexToId(accountIndex.toString()).pipe(map((a) => util.assertReturn(a, 'Unable to retrieve accountId')));
@@ -3987,7 +4035,7 @@
                     ? address
                     : utilCrypto.decodeAddress((address || '').toString());
                 if (decoded.length > 8) {
-                    const accountId = api.registry.createType('AccountId', decoded);
+                    const accountId = api.registry.createType(decoded.length === 20 ? 'AccountId20' : 'AccountId', decoded);
                     return api.derive.accounts.idToIndex(accountId).pipe(map((accountIndex) => [accountId, accountIndex]));
                 }
                 const accountIndex = api.registry.createType('AccountIndex', decoded);
@@ -4072,7 +4120,20 @@
             : of([undefined, undefined]));
     }
     function identity(instanceId, api) {
-        return memo(instanceId, (accountId) => api.derive.accounts._identity(accountId).pipe(switchMap(([identityOfOpt, superOfOpt]) => getParent(api, identityOfOpt, superOfOpt)), map(([identityOfOpt, superOf]) => extractIdentity(identityOfOpt, superOf))));
+        return memo(instanceId, (accountId) => api.derive.accounts._identity(accountId).pipe(switchMap(([identityOfOpt, superOfOpt]) => getParent(api, identityOfOpt, superOfOpt)), map(([identityOfOpt, superOf]) => extractIdentity(identityOfOpt, superOf)), switchMap((identity) => getSubIdentities(identity, api, accountId))));
+    }
+    function getSubIdentities(identity, api, accountId) {
+        const targetAccount = identity.parent || accountId;
+        if (!targetAccount) {
+            return of(identity);
+        }
+        return api.query.identity.subsOf(targetAccount).pipe(map((subsResponse) => {
+            const subs = subsResponse[1];
+            return {
+                ...identity,
+                subs
+            };
+        }));
     }
     const hasIdentity =  firstMemo((api, accountId) => api.derive.accounts.hasIdentityMulti([accountId]));
     function hasIdentityMulti(instanceId, api) {
@@ -4330,10 +4391,22 @@
     }
     function calcShared(api, bestNumber, data, locks) {
         const { allLocked, lockedBalance, lockedBreakdown, vestingLocked } = calcLocked(api, bestNumber, locks);
+        let transferable = null;
+        if (data?.frameSystemAccountInfo?.frozen) {
+            const { frameSystemAccountInfo, freeBalance, reservedBalance } = data;
+            const noFrozenReserved = frameSystemAccountInfo.frozen.isZero() && reservedBalance.isZero();
+            const ED = api.consts.balances.existentialDeposit;
+            const maybeED = noFrozenReserved ? new util.BN(0) : ED;
+            const frozenReserveDif = frameSystemAccountInfo.frozen.sub(reservedBalance);
+            transferable = api.registry.createType('Balance', allLocked
+                ? 0
+                : freeBalance.sub(util.bnMax(maybeED, frozenReserveDif)));
+        }
         return util.objectSpread({}, data, {
             availableBalance: api.registry.createType('Balance', allLocked ? 0 : util.bnMax(new util.BN(0), data?.freeBalance ? data.freeBalance.sub(lockedBalance) : new util.BN(0))),
             lockedBalance,
             lockedBreakdown,
+            transferable,
             vestingLocked
         });
     }
@@ -4446,22 +4519,35 @@
     function zeroBalance(api) {
         return api.registry.createType('Balance');
     }
-    function getBalance(api, [freeBalance, reservedBalance, frozenFee, frozenMisc]) {
+    function getBalance(api, [freeBalance, reservedBalance, frozenFeeOrFrozen, frozenMiscOrFlags], accType) {
         const votingBalance = api.registry.createType('Balance', freeBalance.toBn());
+        if (accType.isFrameAccountData) {
+            return {
+                frameSystemAccountInfo: {
+                    flags: frozenMiscOrFlags,
+                    frozen: frozenFeeOrFrozen
+                },
+                freeBalance,
+                frozenFee: api.registry.createType('Balance', 0),
+                frozenMisc: api.registry.createType('Balance', 0),
+                reservedBalance,
+                votingBalance
+            };
+        }
         return {
             freeBalance,
-            frozenFee,
-            frozenMisc,
+            frozenFee: frozenFeeOrFrozen,
+            frozenMisc: frozenMiscOrFlags,
             reservedBalance,
             votingBalance
         };
     }
-    function calcBalances(api, [accountId, [accountNonce, [primary, ...additional]]]) {
+    function calcBalances(api, [accountId, [accountNonce, [primary, ...additional], accType]]) {
         return util.objectSpread({
             accountId,
             accountNonce,
-            additional: additional.map((b) => getBalance(api, b))
-        }, getBalance(api, primary));
+            additional: additional.map((b) => getBalance(api, b, accType))
+        }, getBalance(api, primary, accType));
     }
     function queryBalancesFree(api, accountId) {
         return combineLatest([
@@ -4470,13 +4556,15 @@
             api.query.system['accountNonce'](accountId)
         ]).pipe(map(([freeBalance, reservedBalance, accountNonce]) => [
             accountNonce,
-            [[freeBalance, reservedBalance, zeroBalance(api), zeroBalance(api)]]
+            [[freeBalance, reservedBalance, zeroBalance(api), zeroBalance(api)]],
+            { isFrameAccountData: false }
         ]));
     }
     function queryNonceOnly(api, accountId) {
         const fill = (nonce) => [
             nonce,
-            [[zeroBalance(api), zeroBalance(api), zeroBalance(api), zeroBalance(api)]]
+            [[zeroBalance(api), zeroBalance(api), zeroBalance(api), zeroBalance(api)]],
+            { isFrameAccountData: false }
         ];
         return util.isFunction(api.query.system.account)
             ? api.query.system.account(accountId).pipe(map(({ nonce }) => fill(nonce)))
@@ -4490,7 +4578,8 @@
             .filter((q) => util.isFunction(q));
         const extract = (nonce, data) => [
             nonce,
-            data.map(({ feeFrozen, free, miscFrozen, reserved }) => [free, reserved, feeFrozen, miscFrozen])
+            data.map(({ feeFrozen, free, miscFrozen, reserved }) => [free, reserved, feeFrozen, miscFrozen]),
+            { isFrameAccountData: false }
         ];
         return balances.length
             ? util.isFunction(api.query.system.account)
@@ -4513,14 +4602,27 @@
             if (!data || data.isEmpty) {
                 return [
                     nonce,
-                    [[zeroBalance(api), zeroBalance(api), zeroBalance(api), zeroBalance(api)]]
+                    [[zeroBalance(api), zeroBalance(api), zeroBalance(api), zeroBalance(api)]],
+                    { isFrameAccountData: false }
                 ];
             }
-            const { feeFrozen, free, miscFrozen, reserved } = data;
-            return [
-                nonce,
-                [[free, reserved, feeFrozen, miscFrozen]]
-            ];
+            const isFrameType = !!infoOrTuple.data.frozen;
+            if (isFrameType) {
+                const { flags, free, frozen, reserved } = data;
+                return [
+                    nonce,
+                    [[free, reserved, frozen, flags]],
+                    { isFrameAccountData: true }
+                ];
+            }
+            else {
+                const { feeFrozen, free, miscFrozen, reserved } = data;
+                return [
+                    nonce,
+                    [[free, reserved, feeFrozen, miscFrozen]],
+                    { isFrameAccountData: false }
+                ];
+            }
         }));
     }
     function account$1(instanceId, api) {
@@ -4541,7 +4643,8 @@
             ])
             : of([api.registry.createType('AccountId'), [
                     api.registry.createType('Index'),
-                    [[zeroBalance(api), zeroBalance(api), zeroBalance(api), zeroBalance(api)]]
+                    [[zeroBalance(api), zeroBalance(api), zeroBalance(api), zeroBalance(api)]],
+                    { isFrameAccountData: false }
                 ]]))), map((result) => calcBalances(api, result))));
     }
 
@@ -6610,7 +6713,7 @@
             : [];
         return claimedRewardsEras.toArray().concat(l);
     }
-    function parseRewards(api, stashId, [erasPoints, erasPrefs, erasRewards], exposures) {
+    function parseRewards(api, stashId, [erasPoints, erasPrefs, erasRewards], exposures, claimedRewardsEras) {
         return exposures.map(({ era, isEmpty, isValidator, nominating, validators: eraValidators }) => {
             const { eraPoints, validators: allValPoints } = erasPoints.find((p) => p.era.eq(era)) || { eraPoints: util.BN_ZERO, validators: {} };
             const { eraReward } = erasRewards.find((r) => r.era.eq(era)) || { eraReward: api.registry.createType('Balance') };
@@ -6658,6 +6761,7 @@
             return {
                 era,
                 eraReward,
+                isClaimed: claimedRewardsEras.some((c) => c.eq(era)),
                 isEmpty,
                 isValidator,
                 nominating,
@@ -6709,9 +6813,23 @@
             return true;
         })
             .filter(({ validators }) => Object.keys(validators).length !== 0)
-            .map((reward) => util.objectSpread({}, reward, {
-            nominators: reward.nominating.filter((n) => reward.validators[n.validatorId])
-        }));
+            .map((reward) => {
+            let isClaimed = reward.isClaimed;
+            const valKeys = Object.keys(reward.validators);
+            if (!reward.isClaimed && valKeys.length) {
+                for (const key of valKeys) {
+                    const info = queryValidators.find((i) => i.accountId.toString() === key);
+                    if (info) {
+                        isClaimed = info.claimedRewardsEras.toArray().some((era) => era.eq(reward.era));
+                        break;
+                    }
+                }
+            }
+            return util.objectSpread({}, reward, {
+                isClaimed,
+                nominators: reward.nominating.filter((n) => reward.validators[n.validatorId])
+            });
+        });
     }
     function _stakerRewardsEras(instanceId, api) {
         return memo(instanceId, (eras, withActive = false) => combineLatest([
@@ -6721,29 +6839,32 @@
         ]));
     }
     function _stakerRewards(instanceId, api) {
-        return memo(instanceId, (accountIds, eras, withActive = false) => combineLatest([
-            api.derive.staking.queryMulti(accountIds, { withClaimedRewardsEras: true, withLedger: true }),
-            api.derive.staking._stakerExposures(accountIds, eras, withActive),
-            api.derive.staking._stakerRewardsEras(eras, withActive)
-        ]).pipe(switchMap(([queries, exposures, erasResult]) => {
-            const allRewards = queries.map(({ claimedRewardsEras, stakingLedger, stashId }, index) => (!stashId || (!stakingLedger && !claimedRewardsEras))
-                ? []
-                : parseRewards(api, stashId, erasResult, exposures[index]));
-            if (withActive) {
-                return of(allRewards);
-            }
-            const [allValidators, stashValidators] = allUniqValidators(allRewards);
-            return api.derive.staking.queryMulti(allValidators, { withClaimedRewardsEras: true, withLedger: true }).pipe(map((queriedVals) => queries.map(({ claimedRewardsEras, stakingLedger }, index) => filterRewards(eras, stashValidators[index]
-                .map((validatorId) => [
-                validatorId,
-                queriedVals.find((q) => q.accountId.eq(validatorId))
-            ])
-                .filter((v) => !!v[1]), {
-                claimedRewardsEras,
-                rewards: allRewards[index],
-                stakingLedger
-            }))));
-        })));
+        return memo(instanceId, (accountIds, eras, withActive = false) => {
+            const sanitizedEras = eras.map((e) => typeof e === 'number' || typeof e === 'string' ? api.registry.createType('u32', e) : e);
+            return combineLatest([
+                api.derive.staking.queryMulti(accountIds, { withClaimedRewardsEras: true, withLedger: true }),
+                api.derive.staking._stakerExposures(accountIds, sanitizedEras, withActive),
+                api.derive.staking._stakerRewardsEras(sanitizedEras, withActive)
+            ]).pipe(switchMap(([queries, exposures, erasResult]) => {
+                const allRewards = queries.map(({ claimedRewardsEras, stakingLedger, stashId }, index) => (!stashId || (!stakingLedger && !claimedRewardsEras))
+                    ? []
+                    : parseRewards(api, stashId, erasResult, exposures[index], claimedRewardsEras));
+                if (withActive) {
+                    return of(allRewards);
+                }
+                const [allValidators, stashValidators] = allUniqValidators(allRewards);
+                return api.derive.staking.queryMulti(allValidators, { withClaimedRewardsEras: true, withLedger: true }).pipe(map((queriedVals) => queries.map(({ claimedRewardsEras, stakingLedger }, index) => filterRewards(eras, stashValidators[index]
+                    .map((validatorId) => [
+                    validatorId,
+                    queriedVals.find((q) => q.accountId.eq(validatorId))
+                ])
+                    .filter((v) => !!v[1]), {
+                    claimedRewardsEras,
+                    rewards: allRewards[index],
+                    stakingLedger
+                }))));
+            }));
+        });
     }
     const stakerRewards =  firstMemo((api, accountId, withActive) => api.derive.staking.erasHistoric(withActive).pipe(switchMap((eras) => api.derive.staking._stakerRewards([accountId], eras, withActive))));
     function stakerRewardsMultiEras(instanceId, api) {
@@ -6790,9 +6911,9 @@
 
     function nextElected(instanceId, api) {
         return memo(instanceId, () =>
-        api.query.staking.erasStakersPaged
+        api.query.staking.erasStakersOverview
             ? api.derive.session.indexes().pipe(
-            switchMap(({ currentEra }) => api.query.staking.erasStakersPaged.keys(currentEra)),
+            switchMap(({ currentEra }) => api.query.staking.erasStakersOverview.keys(currentEra)),
             map((keys) => [...new Set(keys.map(({ args: [, accountId] }) => accountId.toString()))].map((a) => api.registry.createType('AccountId', a))))
             : api.query.staking.erasStakers
                 ? api.derive.session.indexes().pipe(
@@ -6908,8 +7029,9 @@
     function parseResult(api, { allIds, allProposals, approvalIds, councilProposals, proposalCount }) {
         const approvals = [];
         const proposals = [];
-        const councilTreasury = councilProposals.filter(({ proposal }) => proposal && (api.tx.treasury.approveProposal.is(proposal) ||
-            api.tx.treasury.rejectProposal.is(proposal)));
+        const councilTreasury = councilProposals.filter(({ proposal }) =>
+        proposal && ((api.tx.treasury['approveProposal'] && api.tx.treasury['approveProposal'].is(proposal)) ||
+            (api.tx.treasury['rejectProposal'] && api.tx.treasury['rejectProposal'].is(proposal))));
         allIds.forEach((id, index) => {
             if (allProposals[index].isSome) {
                 const council = councilTreasury
@@ -6981,9 +7103,14 @@
         return api.derive.balances.account(address).pipe(map(({ accountNonce }) => accountNonce));
     }
     function nextNonce(api, address) {
-        return api.rpc.system?.accountNextIndex
-            ? api.rpc.system.accountNextIndex(address)
-            : latestNonce(api, address);
+        if (api.call.accountNonceApi) {
+            return api.call.accountNonceApi.accountNonce(address);
+        }
+        else {
+            return api.rpc.system?.accountNextIndex
+                ? api.rpc.system.accountNextIndex(address)
+                : latestNonce(api, address);
+        }
     }
     function signingHeader(api) {
         return combineLatest([
@@ -7001,7 +7128,7 @@
         const period = api.consts.babe?.expectedBlockTime ||
             api.consts['aura']?.slotDuration ||
             api.consts.timestamp?.minimumPeriod.muln(2);
-        return !period.isZero() ? period : undefined;
+        return period && period.isZero && !period.isZero() ? period : undefined;
     }
     function signingInfo(_instanceId, api) {
         return (address, nonce, era) => combineLatest([
@@ -7319,13 +7446,18 @@
                 return api.derive.tx.signingInfo(address, options.nonce, options.era).pipe(first(), mergeMap(async (signingInfo) => {
                     const eraOptions = makeEraOptions(api, this.registry, options, signingInfo);
                     let updateId = -1;
+                    let signedTx = null;
                     if (isKeyringPair(account)) {
                         this.sign(account, eraOptions);
                     }
                     else {
-                        updateId = await this.__internal__signViaSigner(address, eraOptions, signingInfo.header);
+                        const result = await this.__internal__signViaSigner(address, eraOptions, signingInfo.header);
+                        updateId = result.id;
+                        if (result.signedTransaction) {
+                            signedTx = result.signedTransaction;
+                        }
                     }
-                    return { options: eraOptions, updateId };
+                    return { options: eraOptions, signedTransaction: signedTx, updateId };
                 }));
             };
             __internal__observeStatus = (txHash, status) => {
@@ -7349,18 +7481,19 @@
                 })))));
             };
             __internal__observeSend = (info) => {
-                return api.rpc.author.submitExtrinsic(this).pipe(tap((hash) => {
+                return api.rpc.author.submitExtrinsic(info?.signedTransaction || this).pipe(tap((hash) => {
                     this.__internal__updateSigner(hash, info);
                 }));
             };
             __internal__observeSubscribe = (info) => {
                 const txHash = this.hash;
-                return api.rpc.author.submitAndWatchExtrinsic(this).pipe(switchMap((status) => this.__internal__observeStatus(txHash, status)), tap((status) => {
+                return api.rpc.author.submitAndWatchExtrinsic(info?.signedTransaction || this).pipe(switchMap((status) => this.__internal__observeStatus(txHash, status)), tap((status) => {
                     this.__internal__updateSigner(status, info);
                 }));
             };
             __internal__signViaSigner = async (address, options, header) => {
                 const signer = options.signer || api.signer;
+                const allowCallDataAlteration = options.allowCallDataAlteration ?? true;
                 if (!signer) {
                     throw new Error('No signer specified, either via api.setSigner or via sign options. You possibly need to pass through an explicit keypair for the origin so it can be used for signing.');
                 }
@@ -7372,6 +7505,36 @@
                 let result;
                 if (util.isFunction(signer.signPayload)) {
                     result = await signer.signPayload(payload.toPayload());
+                    if (result.signedTransaction && !options.withSignedTransaction) {
+                        throw new Error('The `signedTransaction` field may not be submitted when `withSignedTransaction` is disabled');
+                    }
+                    if (result.signedTransaction && options.withSignedTransaction) {
+                        const ext = this.registry.createTypeUnsafe('Extrinsic', [result.signedTransaction]);
+                        const newSignerPayload = this.registry.createTypeUnsafe('SignerPayload', [util.objectSpread({}, {
+                                address,
+                                assetId: ext.assetId && ext.assetId.isSome ? ext.assetId.toHex() : null,
+                                blockHash: payload.blockHash,
+                                blockNumber: header ? header.number : 0,
+                                era: ext.era.toHex(),
+                                genesisHash: payload.genesisHash,
+                                metadataHash: ext.metadataHash ? ext.metadataHash.toHex() : null,
+                                method: ext.method.toHex(),
+                                mode: ext.mode ? ext.mode.toHex() : null,
+                                nonce: ext.nonce.toHex(),
+                                runtimeVersion: payload.runtimeVersion,
+                                signedExtensions: payload.signedExtensions,
+                                tip: ext.tip ? ext.tip.toHex() : null,
+                                version: payload.version
+                            })]);
+                        if (!ext.isSigned) {
+                            throw new Error(`When using the signedTransaction field, the transaction must be signed. Recieved isSigned: ${ext.isSigned}`);
+                        }
+                        if (!allowCallDataAlteration) {
+                            this.__internal__validateSignedTransaction(payload, ext);
+                        }
+                        super.addSignature(address, result.signature, newSignerPayload.toPayload());
+                        return { id: result.id, signedTransaction: result.signedTransaction };
+                    }
                 }
                 else if (util.isFunction(signer.signRaw)) {
                     result = await signer.signRaw(payload.toRaw());
@@ -7380,7 +7543,7 @@
                     throw new Error('Invalid signer interface, it should implement either signPayload or signRaw (or both)');
                 }
                 super.addSignature(address, result.signature, payload.toPayload());
-                return result.id;
+                return { id: result.id };
             };
             __internal__updateSigner = (status, info) => {
                 if (info && (info.updateId !== -1)) {
@@ -7389,6 +7552,13 @@
                     if (signer && util.isFunction(signer.update)) {
                         signer.update(updateId, status);
                     }
+                }
+            };
+            __internal__validateSignedTransaction = (signerPayload, signedExt) => {
+                const payload = signerPayload.toPayload();
+                const errMsg = (field) => `signAndSend: ${field} does not match the original payload`;
+                if (payload.method !== signedExt.method.toHex()) {
+                    throw new Error(errMsg('call data'));
                 }
             };
         }
@@ -7407,7 +7577,7 @@
         return registry.findMetaError(util.u8aToU8a(errorIndex));
     }
 
-    const XCM_MAPPINGS = ['AssetInstance', 'Fungibility', 'Junction', 'Junctions', 'MultiAsset', 'MultiAssetFilter', 'MultiLocation', 'Response', 'WildFungibility', 'WildMultiAsset', 'Xcm', 'XcmError', 'XcmOrder'];
+    const XCM_MAPPINGS = ['AssetInstance', 'Fungibility', 'Junction', 'Junctions', 'MultiAsset', 'MultiAssetFilter', 'MultiLocation', 'Response', 'WildFungibility', 'WildMultiAsset', 'Xcm', 'XcmError'];
     function mapXcmTypes(version) {
         return XCM_MAPPINGS.reduce((all, key) => util.objectSpread(all, { [key]: `${key}${version}` }), {});
     }
@@ -7787,7 +7957,18 @@
     };
     const versioned$6 = [
         {
-            minmax: [0, 12],
+            minmax: [0, 10],
+            types: {
+                ...sharedTypes$5,
+                ...addrAccountIdTypes$1,
+                CompactAssignments: 'CompactAssignmentsTo257',
+                OpenTip: 'OpenTipTo225',
+                RefCount: 'RefCountTo259',
+                ElectionResult: 'ElectionResultToSpec10'
+            }
+        },
+        {
+            minmax: [11, 12],
             types: {
                 ...sharedTypes$5,
                 ...addrAccountIdTypes$1,
@@ -13017,6 +13198,514 @@
                     1
                 ]
             ]
+        ],
+        [
+            22790000,
+            1002000,
+            [
+                [
+                    "0xdf6acb689907609b",
+                    4
+                ],
+                [
+                    "0x37e397fc7c91f5e4",
+                    2
+                ],
+                [
+                    "0x40fe3ad401f8959a",
+                    6
+                ],
+                [
+                    "0xd2bc9897eed08f15",
+                    3
+                ],
+                [
+                    "0xf78b278be53f454c",
+                    2
+                ],
+                [
+                    "0xaf2c0297a23e6d3d",
+                    10
+                ],
+                [
+                    "0x49eaaf1b548a0cb0",
+                    3
+                ],
+                [
+                    "0x91d5df18b0d2cf58",
+                    2
+                ],
+                [
+                    "0x2a5e924655399e60",
+                    1
+                ],
+                [
+                    "0xed99c5acb25eedf5",
+                    3
+                ],
+                [
+                    "0xcbca25e39f142387",
+                    2
+                ],
+                [
+                    "0x687ad44ad37f03c2",
+                    1
+                ],
+                [
+                    "0xab3c0572291feb8b",
+                    1
+                ],
+                [
+                    "0xbc9d89904f5b923f",
+                    1
+                ],
+                [
+                    "0x37c8bb1350a9a2a8",
+                    4
+                ],
+                [
+                    "0xf3ff14d5ab527059",
+                    3
+                ],
+                [
+                    "0x17a6bc0d0062aeb3",
+                    1
+                ],
+                [
+                    "0x18ef58a3b67ba770",
+                    1
+                ],
+                [
+                    "0xfbc577b9d747efd6",
+                    1
+                ]
+            ]
+        ],
+        [
+            23176015,
+            1002001,
+            [
+                [
+                    "0xdf6acb689907609b",
+                    4
+                ],
+                [
+                    "0x37e397fc7c91f5e4",
+                    2
+                ],
+                [
+                    "0x40fe3ad401f8959a",
+                    6
+                ],
+                [
+                    "0xd2bc9897eed08f15",
+                    3
+                ],
+                [
+                    "0xf78b278be53f454c",
+                    2
+                ],
+                [
+                    "0xaf2c0297a23e6d3d",
+                    10
+                ],
+                [
+                    "0x49eaaf1b548a0cb0",
+                    3
+                ],
+                [
+                    "0x91d5df18b0d2cf58",
+                    2
+                ],
+                [
+                    "0x2a5e924655399e60",
+                    1
+                ],
+                [
+                    "0xed99c5acb25eedf5",
+                    3
+                ],
+                [
+                    "0xcbca25e39f142387",
+                    2
+                ],
+                [
+                    "0x687ad44ad37f03c2",
+                    1
+                ],
+                [
+                    "0xab3c0572291feb8b",
+                    1
+                ],
+                [
+                    "0xbc9d89904f5b923f",
+                    1
+                ],
+                [
+                    "0x37c8bb1350a9a2a8",
+                    4
+                ],
+                [
+                    "0xf3ff14d5ab527059",
+                    3
+                ],
+                [
+                    "0x17a6bc0d0062aeb3",
+                    1
+                ],
+                [
+                    "0x18ef58a3b67ba770",
+                    1
+                ],
+                [
+                    "0xfbc577b9d747efd6",
+                    1
+                ]
+            ]
+        ],
+        [
+            23450253,
+            1002004,
+            [
+                [
+                    "0xdf6acb689907609b",
+                    4
+                ],
+                [
+                    "0x37e397fc7c91f5e4",
+                    2
+                ],
+                [
+                    "0x40fe3ad401f8959a",
+                    6
+                ],
+                [
+                    "0xd2bc9897eed08f15",
+                    3
+                ],
+                [
+                    "0xf78b278be53f454c",
+                    2
+                ],
+                [
+                    "0xaf2c0297a23e6d3d",
+                    10
+                ],
+                [
+                    "0x49eaaf1b548a0cb0",
+                    3
+                ],
+                [
+                    "0x91d5df18b0d2cf58",
+                    2
+                ],
+                [
+                    "0x2a5e924655399e60",
+                    1
+                ],
+                [
+                    "0xed99c5acb25eedf5",
+                    3
+                ],
+                [
+                    "0xcbca25e39f142387",
+                    2
+                ],
+                [
+                    "0x687ad44ad37f03c2",
+                    1
+                ],
+                [
+                    "0xab3c0572291feb8b",
+                    1
+                ],
+                [
+                    "0xbc9d89904f5b923f",
+                    1
+                ],
+                [
+                    "0x37c8bb1350a9a2a8",
+                    4
+                ],
+                [
+                    "0xf3ff14d5ab527059",
+                    3
+                ],
+                [
+                    "0x17a6bc0d0062aeb3",
+                    1
+                ],
+                [
+                    "0x18ef58a3b67ba770",
+                    1
+                ],
+                [
+                    "0xfbc577b9d747efd6",
+                    1
+                ]
+            ]
+        ],
+        [
+            23565293,
+            1002005,
+            [
+                [
+                    "0xdf6acb689907609b",
+                    4
+                ],
+                [
+                    "0x37e397fc7c91f5e4",
+                    2
+                ],
+                [
+                    "0x40fe3ad401f8959a",
+                    6
+                ],
+                [
+                    "0xd2bc9897eed08f15",
+                    3
+                ],
+                [
+                    "0xf78b278be53f454c",
+                    2
+                ],
+                [
+                    "0xaf2c0297a23e6d3d",
+                    10
+                ],
+                [
+                    "0x49eaaf1b548a0cb0",
+                    3
+                ],
+                [
+                    "0x91d5df18b0d2cf58",
+                    2
+                ],
+                [
+                    "0x2a5e924655399e60",
+                    1
+                ],
+                [
+                    "0xed99c5acb25eedf5",
+                    3
+                ],
+                [
+                    "0xcbca25e39f142387",
+                    2
+                ],
+                [
+                    "0x687ad44ad37f03c2",
+                    1
+                ],
+                [
+                    "0xab3c0572291feb8b",
+                    1
+                ],
+                [
+                    "0xbc9d89904f5b923f",
+                    1
+                ],
+                [
+                    "0x37c8bb1350a9a2a8",
+                    4
+                ],
+                [
+                    "0xf3ff14d5ab527059",
+                    3
+                ],
+                [
+                    "0x17a6bc0d0062aeb3",
+                    1
+                ],
+                [
+                    "0x18ef58a3b67ba770",
+                    1
+                ],
+                [
+                    "0xfbc577b9d747efd6",
+                    1
+                ]
+            ]
+        ],
+        [
+            23780224,
+            1002006,
+            [
+                [
+                    "0xdf6acb689907609b",
+                    4
+                ],
+                [
+                    "0x37e397fc7c91f5e4",
+                    2
+                ],
+                [
+                    "0x40fe3ad401f8959a",
+                    6
+                ],
+                [
+                    "0xd2bc9897eed08f15",
+                    3
+                ],
+                [
+                    "0xf78b278be53f454c",
+                    2
+                ],
+                [
+                    "0xaf2c0297a23e6d3d",
+                    10
+                ],
+                [
+                    "0x49eaaf1b548a0cb0",
+                    3
+                ],
+                [
+                    "0x91d5df18b0d2cf58",
+                    2
+                ],
+                [
+                    "0x2a5e924655399e60",
+                    1
+                ],
+                [
+                    "0xed99c5acb25eedf5",
+                    3
+                ],
+                [
+                    "0xcbca25e39f142387",
+                    2
+                ],
+                [
+                    "0x687ad44ad37f03c2",
+                    1
+                ],
+                [
+                    "0xab3c0572291feb8b",
+                    1
+                ],
+                [
+                    "0xbc9d89904f5b923f",
+                    1
+                ],
+                [
+                    "0x37c8bb1350a9a2a8",
+                    4
+                ],
+                [
+                    "0xf3ff14d5ab527059",
+                    3
+                ],
+                [
+                    "0x17a6bc0d0062aeb3",
+                    1
+                ],
+                [
+                    "0x18ef58a3b67ba770",
+                    1
+                ],
+                [
+                    "0xfbc577b9d747efd6",
+                    1
+                ]
+            ]
+        ],
+        [
+            24786390,
+            1003000,
+            [
+                [
+                    "0xc51ff1fa3f5d0cca",
+                    1
+                ],
+                [
+                    "0xdf6acb689907609b",
+                    5
+                ],
+                [
+                    "0x37e397fc7c91f5e4",
+                    2
+                ],
+                [
+                    "0x40fe3ad401f8959a",
+                    6
+                ],
+                [
+                    "0xd2bc9897eed08f15",
+                    3
+                ],
+                [
+                    "0xf78b278be53f454c",
+                    2
+                ],
+                [
+                    "0xaf2c0297a23e6d3d",
+                    11
+                ],
+                [
+                    "0x49eaaf1b548a0cb0",
+                    3
+                ],
+                [
+                    "0x91d5df18b0d2cf58",
+                    2
+                ],
+                [
+                    "0x2a5e924655399e60",
+                    1
+                ],
+                [
+                    "0xed99c5acb25eedf5",
+                    3
+                ],
+                [
+                    "0xcbca25e39f142387",
+                    2
+                ],
+                [
+                    "0x687ad44ad37f03c2",
+                    1
+                ],
+                [
+                    "0xab3c0572291feb8b",
+                    1
+                ],
+                [
+                    "0xbc9d89904f5b923f",
+                    1
+                ],
+                [
+                    "0x37c8bb1350a9a2a8",
+                    4
+                ],
+                [
+                    "0xf3ff14d5ab527059",
+                    3
+                ],
+                [
+                    "0x6ff52ee858e6c5bd",
+                    1
+                ],
+                [
+                    "0x91b1c8b16328eb92",
+                    1
+                ],
+                [
+                    "0x9ffb505aa738d69c",
+                    1
+                ],
+                [
+                    "0x17a6bc0d0062aeb3",
+                    1
+                ],
+                [
+                    "0x18ef58a3b67ba770",
+                    1
+                ],
+                [
+                    "0xfbc577b9d747efd6",
+                    1
+                ]
+            ]
         ]
     ];
 
@@ -16316,6 +17005,334 @@
         [
             20438530,
             1002000,
+            [
+                [
+                    "0xdf6acb689907609b",
+                    4
+                ],
+                [
+                    "0x37e397fc7c91f5e4",
+                    2
+                ],
+                [
+                    "0x40fe3ad401f8959a",
+                    6
+                ],
+                [
+                    "0x17a6bc0d0062aeb3",
+                    1
+                ],
+                [
+                    "0x18ef58a3b67ba770",
+                    1
+                ],
+                [
+                    "0xd2bc9897eed08f15",
+                    3
+                ],
+                [
+                    "0xf78b278be53f454c",
+                    2
+                ],
+                [
+                    "0xaf2c0297a23e6d3d",
+                    10
+                ],
+                [
+                    "0x49eaaf1b548a0cb0",
+                    3
+                ],
+                [
+                    "0x91d5df18b0d2cf58",
+                    2
+                ],
+                [
+                    "0x2a5e924655399e60",
+                    1
+                ],
+                [
+                    "0xed99c5acb25eedf5",
+                    3
+                ],
+                [
+                    "0xcbca25e39f142387",
+                    2
+                ],
+                [
+                    "0x687ad44ad37f03c2",
+                    1
+                ],
+                [
+                    "0xab3c0572291feb8b",
+                    1
+                ],
+                [
+                    "0xbc9d89904f5b923f",
+                    1
+                ],
+                [
+                    "0x37c8bb1350a9a2a8",
+                    4
+                ],
+                [
+                    "0xf3ff14d5ab527059",
+                    3
+                ],
+                [
+                    "0xfbc577b9d747efd6",
+                    1
+                ]
+            ]
+        ],
+        [
+            21169168,
+            1002004,
+            [
+                [
+                    "0xdf6acb689907609b",
+                    4
+                ],
+                [
+                    "0x37e397fc7c91f5e4",
+                    2
+                ],
+                [
+                    "0x40fe3ad401f8959a",
+                    6
+                ],
+                [
+                    "0x17a6bc0d0062aeb3",
+                    1
+                ],
+                [
+                    "0x18ef58a3b67ba770",
+                    1
+                ],
+                [
+                    "0xd2bc9897eed08f15",
+                    3
+                ],
+                [
+                    "0xf78b278be53f454c",
+                    2
+                ],
+                [
+                    "0xaf2c0297a23e6d3d",
+                    10
+                ],
+                [
+                    "0x49eaaf1b548a0cb0",
+                    3
+                ],
+                [
+                    "0x91d5df18b0d2cf58",
+                    2
+                ],
+                [
+                    "0x2a5e924655399e60",
+                    1
+                ],
+                [
+                    "0xed99c5acb25eedf5",
+                    3
+                ],
+                [
+                    "0xcbca25e39f142387",
+                    2
+                ],
+                [
+                    "0x687ad44ad37f03c2",
+                    1
+                ],
+                [
+                    "0xab3c0572291feb8b",
+                    1
+                ],
+                [
+                    "0xbc9d89904f5b923f",
+                    1
+                ],
+                [
+                    "0x37c8bb1350a9a2a8",
+                    4
+                ],
+                [
+                    "0xf3ff14d5ab527059",
+                    3
+                ],
+                [
+                    "0xfbc577b9d747efd6",
+                    1
+                ]
+            ]
+        ],
+        [
+            21455374,
+            1002005,
+            [
+                [
+                    "0xdf6acb689907609b",
+                    4
+                ],
+                [
+                    "0x37e397fc7c91f5e4",
+                    2
+                ],
+                [
+                    "0x40fe3ad401f8959a",
+                    6
+                ],
+                [
+                    "0x17a6bc0d0062aeb3",
+                    1
+                ],
+                [
+                    "0x18ef58a3b67ba770",
+                    1
+                ],
+                [
+                    "0xd2bc9897eed08f15",
+                    3
+                ],
+                [
+                    "0xf78b278be53f454c",
+                    2
+                ],
+                [
+                    "0xaf2c0297a23e6d3d",
+                    10
+                ],
+                [
+                    "0x49eaaf1b548a0cb0",
+                    3
+                ],
+                [
+                    "0x91d5df18b0d2cf58",
+                    2
+                ],
+                [
+                    "0x2a5e924655399e60",
+                    1
+                ],
+                [
+                    "0xed99c5acb25eedf5",
+                    3
+                ],
+                [
+                    "0xcbca25e39f142387",
+                    2
+                ],
+                [
+                    "0x687ad44ad37f03c2",
+                    1
+                ],
+                [
+                    "0xab3c0572291feb8b",
+                    1
+                ],
+                [
+                    "0xbc9d89904f5b923f",
+                    1
+                ],
+                [
+                    "0x37c8bb1350a9a2a8",
+                    4
+                ],
+                [
+                    "0xf3ff14d5ab527059",
+                    3
+                ],
+                [
+                    "0xfbc577b9d747efd6",
+                    1
+                ]
+            ]
+        ],
+        [
+            21558004,
+            1002006,
+            [
+                [
+                    "0xdf6acb689907609b",
+                    4
+                ],
+                [
+                    "0x37e397fc7c91f5e4",
+                    2
+                ],
+                [
+                    "0x40fe3ad401f8959a",
+                    6
+                ],
+                [
+                    "0x17a6bc0d0062aeb3",
+                    1
+                ],
+                [
+                    "0x18ef58a3b67ba770",
+                    1
+                ],
+                [
+                    "0xd2bc9897eed08f15",
+                    3
+                ],
+                [
+                    "0xf78b278be53f454c",
+                    2
+                ],
+                [
+                    "0xaf2c0297a23e6d3d",
+                    10
+                ],
+                [
+                    "0x49eaaf1b548a0cb0",
+                    3
+                ],
+                [
+                    "0x91d5df18b0d2cf58",
+                    2
+                ],
+                [
+                    "0x2a5e924655399e60",
+                    1
+                ],
+                [
+                    "0xed99c5acb25eedf5",
+                    3
+                ],
+                [
+                    "0xcbca25e39f142387",
+                    2
+                ],
+                [
+                    "0x687ad44ad37f03c2",
+                    1
+                ],
+                [
+                    "0xab3c0572291feb8b",
+                    1
+                ],
+                [
+                    "0xbc9d89904f5b923f",
+                    1
+                ],
+                [
+                    "0x37c8bb1350a9a2a8",
+                    4
+                ],
+                [
+                    "0xf3ff14d5ab527059",
+                    3
+                ],
+                [
+                    "0xfbc577b9d747efd6",
+                    1
+                ]
+            ]
+        ],
+        [
+            21800141,
+            1002007,
             [
                 [
                     "0xdf6acb689907609b",
@@ -21893,6 +22910,456 @@
                     1
                 ]
             ]
+        ],
+        [
+            20649086,
+            1011000,
+            [
+                [
+                    "0xdf6acb689907609b",
+                    5
+                ],
+                [
+                    "0x37e397fc7c91f5e4",
+                    2
+                ],
+                [
+                    "0x40fe3ad401f8959a",
+                    6
+                ],
+                [
+                    "0xd2bc9897eed08f15",
+                    3
+                ],
+                [
+                    "0xf78b278be53f454c",
+                    2
+                ],
+                [
+                    "0xaf2c0297a23e6d3d",
+                    11
+                ],
+                [
+                    "0x49eaaf1b548a0cb0",
+                    3
+                ],
+                [
+                    "0x91d5df18b0d2cf58",
+                    2
+                ],
+                [
+                    "0x2a5e924655399e60",
+                    1
+                ],
+                [
+                    "0xed99c5acb25eedf5",
+                    3
+                ],
+                [
+                    "0xcbca25e39f142387",
+                    2
+                ],
+                [
+                    "0x687ad44ad37f03c2",
+                    1
+                ],
+                [
+                    "0xab3c0572291feb8b",
+                    1
+                ],
+                [
+                    "0xbc9d89904f5b923f",
+                    1
+                ],
+                [
+                    "0x37c8bb1350a9a2a8",
+                    4
+                ],
+                [
+                    "0xf3ff14d5ab527059",
+                    3
+                ],
+                [
+                    "0x6ff52ee858e6c5bd",
+                    1
+                ],
+                [
+                    "0x17a6bc0d0062aeb3",
+                    1
+                ],
+                [
+                    "0x18ef58a3b67ba770",
+                    1
+                ],
+                [
+                    "0xfbc577b9d747efd6",
+                    1
+                ]
+            ]
+        ],
+        [
+            21217837,
+            1011001,
+            [
+                [
+                    "0xdf6acb689907609b",
+                    5
+                ],
+                [
+                    "0x37e397fc7c91f5e4",
+                    2
+                ],
+                [
+                    "0x40fe3ad401f8959a",
+                    6
+                ],
+                [
+                    "0xd2bc9897eed08f15",
+                    3
+                ],
+                [
+                    "0xf78b278be53f454c",
+                    2
+                ],
+                [
+                    "0xaf2c0297a23e6d3d",
+                    11
+                ],
+                [
+                    "0x49eaaf1b548a0cb0",
+                    3
+                ],
+                [
+                    "0x91d5df18b0d2cf58",
+                    2
+                ],
+                [
+                    "0x2a5e924655399e60",
+                    1
+                ],
+                [
+                    "0xed99c5acb25eedf5",
+                    3
+                ],
+                [
+                    "0xcbca25e39f142387",
+                    2
+                ],
+                [
+                    "0x687ad44ad37f03c2",
+                    1
+                ],
+                [
+                    "0xab3c0572291feb8b",
+                    1
+                ],
+                [
+                    "0xbc9d89904f5b923f",
+                    1
+                ],
+                [
+                    "0x37c8bb1350a9a2a8",
+                    4
+                ],
+                [
+                    "0xf3ff14d5ab527059",
+                    3
+                ],
+                [
+                    "0x6ff52ee858e6c5bd",
+                    1
+                ],
+                [
+                    "0x17a6bc0d0062aeb3",
+                    1
+                ],
+                [
+                    "0x18ef58a3b67ba770",
+                    1
+                ],
+                [
+                    "0xfbc577b9d747efd6",
+                    1
+                ]
+            ]
+        ],
+        [
+            21300429,
+            1013000,
+            [
+                [
+                    "0xdf6acb689907609b",
+                    5
+                ],
+                [
+                    "0x37e397fc7c91f5e4",
+                    2
+                ],
+                [
+                    "0x40fe3ad401f8959a",
+                    6
+                ],
+                [
+                    "0xd2bc9897eed08f15",
+                    3
+                ],
+                [
+                    "0xf78b278be53f454c",
+                    2
+                ],
+                [
+                    "0xaf2c0297a23e6d3d",
+                    11
+                ],
+                [
+                    "0x49eaaf1b548a0cb0",
+                    3
+                ],
+                [
+                    "0x91d5df18b0d2cf58",
+                    2
+                ],
+                [
+                    "0x2a5e924655399e60",
+                    1
+                ],
+                [
+                    "0xed99c5acb25eedf5",
+                    3
+                ],
+                [
+                    "0xcbca25e39f142387",
+                    2
+                ],
+                [
+                    "0x687ad44ad37f03c2",
+                    1
+                ],
+                [
+                    "0xab3c0572291feb8b",
+                    1
+                ],
+                [
+                    "0xbc9d89904f5b923f",
+                    1
+                ],
+                [
+                    "0x37c8bb1350a9a2a8",
+                    4
+                ],
+                [
+                    "0xf3ff14d5ab527059",
+                    3
+                ],
+                [
+                    "0x6ff52ee858e6c5bd",
+                    1
+                ],
+                [
+                    "0x91b1c8b16328eb92",
+                    1
+                ],
+                [
+                    "0x17a6bc0d0062aeb3",
+                    1
+                ],
+                [
+                    "0x18ef58a3b67ba770",
+                    1
+                ],
+                [
+                    "0xfbc577b9d747efd6",
+                    1
+                ]
+            ]
+        ],
+        [
+            21460051,
+            1014000,
+            [
+                [
+                    "0xdf6acb689907609b",
+                    5
+                ],
+                [
+                    "0x37e397fc7c91f5e4",
+                    2
+                ],
+                [
+                    "0x40fe3ad401f8959a",
+                    6
+                ],
+                [
+                    "0xd2bc9897eed08f15",
+                    3
+                ],
+                [
+                    "0xf78b278be53f454c",
+                    2
+                ],
+                [
+                    "0xaf2c0297a23e6d3d",
+                    11
+                ],
+                [
+                    "0x49eaaf1b548a0cb0",
+                    3
+                ],
+                [
+                    "0x91d5df18b0d2cf58",
+                    2
+                ],
+                [
+                    "0x2a5e924655399e60",
+                    1
+                ],
+                [
+                    "0xed99c5acb25eedf5",
+                    3
+                ],
+                [
+                    "0xcbca25e39f142387",
+                    2
+                ],
+                [
+                    "0x687ad44ad37f03c2",
+                    1
+                ],
+                [
+                    "0xab3c0572291feb8b",
+                    1
+                ],
+                [
+                    "0xbc9d89904f5b923f",
+                    1
+                ],
+                [
+                    "0x37c8bb1350a9a2a8",
+                    4
+                ],
+                [
+                    "0xf3ff14d5ab527059",
+                    3
+                ],
+                [
+                    "0x6ff52ee858e6c5bd",
+                    1
+                ],
+                [
+                    "0x91b1c8b16328eb92",
+                    1
+                ],
+                [
+                    "0x9ffb505aa738d69c",
+                    1
+                ],
+                [
+                    "0x17a6bc0d0062aeb3",
+                    1
+                ],
+                [
+                    "0x18ef58a3b67ba770",
+                    1
+                ],
+                [
+                    "0xfbc577b9d747efd6",
+                    1
+                ]
+            ]
+        ],
+        [
+            21925427,
+            1015000,
+            [
+                [
+                    "0xdf6acb689907609b",
+                    5
+                ],
+                [
+                    "0x37e397fc7c91f5e4",
+                    2
+                ],
+                [
+                    "0x40fe3ad401f8959a",
+                    6
+                ],
+                [
+                    "0xd2bc9897eed08f15",
+                    3
+                ],
+                [
+                    "0xf78b278be53f454c",
+                    2
+                ],
+                [
+                    "0xaf2c0297a23e6d3d",
+                    11
+                ],
+                [
+                    "0x49eaaf1b548a0cb0",
+                    4
+                ],
+                [
+                    "0x91d5df18b0d2cf58",
+                    2
+                ],
+                [
+                    "0x2a5e924655399e60",
+                    1
+                ],
+                [
+                    "0xed99c5acb25eedf5",
+                    3
+                ],
+                [
+                    "0xcbca25e39f142387",
+                    2
+                ],
+                [
+                    "0x687ad44ad37f03c2",
+                    1
+                ],
+                [
+                    "0xab3c0572291feb8b",
+                    1
+                ],
+                [
+                    "0xbc9d89904f5b923f",
+                    1
+                ],
+                [
+                    "0x37c8bb1350a9a2a8",
+                    4
+                ],
+                [
+                    "0xf3ff14d5ab527059",
+                    3
+                ],
+                [
+                    "0x6ff52ee858e6c5bd",
+                    1
+                ],
+                [
+                    "0x91b1c8b16328eb92",
+                    1
+                ],
+                [
+                    "0x9ffb505aa738d69c",
+                    1
+                ],
+                [
+                    "0x17a6bc0d0062aeb3",
+                    1
+                ],
+                [
+                    "0x18ef58a3b67ba770",
+                    1
+                ],
+                [
+                    "0xfbc577b9d747efd6",
+                    1
+                ]
+            ]
         ]
     ];
 
@@ -22158,6 +23625,7 @@
             this._rpcCore = new RpcCore(this.__internal__instanceId, this.__internal__registry, {
                 isPedantic: this._options.isPedantic,
                 provider,
+                rpcCacheCapacity: this._options.rpcCacheCapacity,
                 userRpc: this._options.rpc
             });
             this._isConnected = new BehaviorSubject(this._rpcCore.provider.isConnected);
@@ -22382,52 +23850,98 @@
             this._addRuntimeDef(result, this._options.runtime);
             return Object.entries(result);
         }
+        _getMethods(registry, methods) {
+            const result = {};
+            methods.forEach((m) => {
+                const { docs, inputs, name, output } = m;
+                result[name.toString()] = {
+                    description: docs.map((d) => d.toString()).join(),
+                    params: inputs.map(({ name, type }) => {
+                        return { name: name.toString(), type: registry.lookup.getName(type) || registry.lookup.getTypeDef(type).type };
+                    }),
+                    type: registry.lookup.getName(output) || registry.lookup.getTypeDef(output).type
+                };
+            });
+            return result;
+        }
+        _getRuntimeDefsViaMetadata(registry) {
+            const result = {};
+            const { apis } = registry.metadata;
+            for (let i = 0, count = apis.length; i < count; i++) {
+                const { methods, name } = apis[i];
+                result[name.toString()] = [{
+                        methods: this._getMethods(registry, methods),
+                        version: 0
+                    }];
+            }
+            return Object.entries(result);
+        }
         _decorateCalls({ registry, runtimeVersion: { apis, specName, specVersion } }, decorateMethod, blockHash) {
             const result = {};
             const named = {};
             const hashes = {};
-            const sections = this._getRuntimeDefs(registry, specName, this._runtimeChain);
+            const isApiInMetadata = registry.metadata.apis.length > 0;
+            const sections = isApiInMetadata ? this._getRuntimeDefsViaMetadata(registry) : this._getRuntimeDefs(registry, specName, this._runtimeChain);
             const older = [];
             const implName = `${specName.toString()}/${specVersion.toString()}`;
             const hasLogged = this.__internal__runtimeLog[implName] || false;
             this.__internal__runtimeLog[implName] = true;
-            for (let i = 0, scount = sections.length; i < scount; i++) {
-                const [_section, secs] = sections[i];
-                const sectionHash = utilCrypto.blake2AsHex(_section, 64);
-                const rtApi = apis.find(([a]) => a.eq(sectionHash));
-                hashes[sectionHash] = true;
-                if (rtApi) {
-                    const all = secs.map(({ version }) => version).sort();
-                    const sec = secs.find(({ version }) => rtApi[1].eq(version));
-                    if (sec) {
-                        const section = util.stringCamelCase(_section);
-                        const methods = Object.entries(sec.methods);
-                        if (methods.length) {
-                            if (!named[section]) {
-                                named[section] = {};
-                            }
-                            for (let m = 0, mcount = methods.length; m < mcount; m++) {
-                                const [_method, def] = methods[m];
-                                const method = util.stringCamelCase(_method);
-                                named[section][method] = util.objectSpread({ method, name: `${_section}_${_method}`, section, sectionHash }, def);
-                            }
-                        }
+            if (isApiInMetadata) {
+                for (let i = 0, scount = sections.length; i < scount; i++) {
+                    const [_section, secs] = sections[i];
+                    const sec = secs[0];
+                    const sectionHash = utilCrypto.blake2AsHex(_section, 64);
+                    const section = util.stringCamelCase(_section);
+                    const methods = Object.entries(sec.methods);
+                    if (!named[section]) {
+                        named[section] = {};
                     }
-                    else {
-                        older.push(`${_section}/${rtApi[1].toString()} (${all.join('/')} known)`);
+                    for (let m = 0, mcount = methods.length; m < mcount; m++) {
+                        const [_method, def] = methods[m];
+                        const method = util.stringCamelCase(_method);
+                        named[section][method] = util.objectSpread({ method, name: `${_section}_${_method}`, section, sectionHash }, def);
                     }
                 }
             }
-            const notFound = apis
-                .map(([a, v]) => [a.toHex(), v.toString()])
-                .filter(([a]) => !hashes[a])
-                .map(([a, v]) => `${this._runtimeMap[a] || a}/${v}`);
-            if (!this._options.noInitWarn && !hasLogged) {
-                if (older.length) {
-                    l$1.warn(`${implName}: Not decorating runtime apis without matching versions: ${older.join(', ')}`);
+            else {
+                for (let i = 0, scount = sections.length; i < scount; i++) {
+                    const [_section, secs] = sections[i];
+                    const sectionHash = utilCrypto.blake2AsHex(_section, 64);
+                    const rtApi = apis.find(([a]) => a.eq(sectionHash));
+                    hashes[sectionHash] = true;
+                    if (rtApi) {
+                        const all = secs.map(({ version }) => version).sort();
+                        const sec = secs.find(({ version }) => rtApi[1].eq(version));
+                        if (sec) {
+                            const section = util.stringCamelCase(_section);
+                            const methods = Object.entries(sec.methods);
+                            if (methods.length) {
+                                if (!named[section]) {
+                                    named[section] = {};
+                                }
+                                for (let m = 0, mcount = methods.length; m < mcount; m++) {
+                                    const [_method, def] = methods[m];
+                                    const method = util.stringCamelCase(_method);
+                                    named[section][method] = util.objectSpread({ method, name: `${_section}_${_method}`, section, sectionHash }, def);
+                                }
+                            }
+                        }
+                        else {
+                            older.push(`${_section}/${rtApi[1].toString()} (${all.join('/')} known)`);
+                        }
+                    }
                 }
-                if (notFound.length) {
-                    l$1.warn(`${implName}: Not decorating unknown runtime apis: ${notFound.join(', ')}`);
+                const notFound = apis
+                    .map(([a, v]) => [a.toHex(), v.toString()])
+                    .filter(([a]) => !hashes[a])
+                    .map(([a, v]) => `${this._runtimeMap[a] || a}/${v}`);
+                if (!this._options.noInitWarn && !hasLogged) {
+                    if (older.length) {
+                        l$1.warn(`${implName}: Not decorating runtime apis without matching versions: ${older.join(', ')}`);
+                    }
+                    if (notFound.length) {
+                        l$1.warn(`${implName}: Not decorating unknown runtime apis: ${notFound.join(', ')}`);
+                    }
                 }
             }
             const stateCall = blockHash
@@ -22670,6 +24184,7 @@
     }
 
     const KEEPALIVE_INTERVAL = 10000;
+    const SUPPORTED_METADATA_VERSIONS = [15, 14];
     const l = util.logger('api/init');
     function textToString(t) {
         return t.toString();
@@ -22735,7 +24250,7 @@
         }
         async _createBlockRegistry(blockHash, header, version) {
             const registry = new types.TypeRegistry(blockHash);
-            const metadata = new types.Metadata(registry, await firstValueFrom(this._rpcCore.state.getMetadata.raw(header.parentHash)));
+            const metadata = await this._retrieveMetadata(version.apis, header.parentHash, registry);
             const runtimeChain = this._runtimeChain;
             if (!runtimeChain) {
                 throw new Error('Invalid initializion order, runtimeChain is not available');
@@ -22798,6 +24313,9 @@
         }
         async _loadMeta() {
             if (this._isReady) {
+                if (!this._options.source) {
+                    this._subscribeUpdates();
+                }
                 return true;
             }
             this._unsubscribeUpdates();
@@ -22847,23 +24365,20 @@
                 })))).subscribe();
         }
         async _metaFromChain(optMetadata) {
-            const [genesisHash, runtimeVersion, chain, chainProps, rpcMethods, chainMetadata] = await Promise.all([
+            const [genesisHash, runtimeVersion, chain, chainProps, rpcMethods] = await Promise.all([
                 firstValueFrom(this._rpcCore.chain.getBlockHash(0)),
                 firstValueFrom(this._rpcCore.state.getRuntimeVersion()),
                 firstValueFrom(this._rpcCore.system.chain()),
                 firstValueFrom(this._rpcCore.system.properties()),
-                firstValueFrom(this._rpcCore.rpc.methods()),
-                optMetadata
-                    ? Promise.resolve(null)
-                    : firstValueFrom(this._rpcCore.state.getMetadata())
+                firstValueFrom(this._rpcCore.rpc.methods())
             ]);
             this._runtimeChain = chain;
             this._runtimeVersion = runtimeVersion;
             this._rx.runtimeVersion = runtimeVersion;
             const metadataKey = `${genesisHash.toHex() || '0x'}-${runtimeVersion.specVersion.toString()}`;
-            const metadata = chainMetadata || (optMetadata?.[metadataKey]
+            const metadata = optMetadata?.[metadataKey]
                 ? new types.Metadata(this.registry, optMetadata[metadataKey])
-                : await firstValueFrom(this._rpcCore.state.getMetadata()));
+                : await this._retrieveMetadata(runtimeVersion.apis);
             this._initRegistry(this.registry, chain, runtimeVersion, metadata, chainProps);
             this._filterRpc(rpcMethods.methods.map(textToString), getSpecRpc(this.registry, chain, runtimeVersion.specName));
             this._subscribeUpdates();
@@ -22886,6 +24401,52 @@
             this._rx.derive = this._decorateDeriveRx(this._rxDecorateMethod);
             this._derive = this._decorateDerive(this._decorateMethod);
             return true;
+        }
+        async _retrieveMetadata(apis, at, registry) {
+            let metadataVersion = null;
+            const metadataApi = apis.find(([a]) => a.eq(utilCrypto.blake2AsHex('Metadata', 64)));
+            const typeRegistry = registry || this.registry;
+            if (!metadataApi || metadataApi[1].toNumber() < 2) {
+                l.warn('MetadataApi not available, rpc::state::get_metadata will be used.');
+                return at
+                    ? new types.Metadata(typeRegistry, await firstValueFrom(this._rpcCore.state.getMetadata.raw(at)))
+                    : await firstValueFrom(this._rpcCore.state.getMetadata());
+            }
+            try {
+                const metadataVersionsAsBytes = at
+                    ? await firstValueFrom(this._rpcCore.state.call.raw('Metadata_metadata_versions', '0x', at))
+                    : await firstValueFrom(this._rpcCore.state.call('Metadata_metadata_versions', '0x'));
+                const versions = typeRegistry.createType('Vec<u32>', metadataVersionsAsBytes);
+                metadataVersion = versions.filter((ver) => SUPPORTED_METADATA_VERSIONS.includes(ver.toNumber())).reduce((largest, current) => current.gt(largest) ? current : largest);
+            }
+            catch (e) {
+                l.debug(e.message);
+                l.warn('error with state_call::Metadata_metadata_versions, rpc::state::get_metadata will be used');
+            }
+            if (metadataVersion && !SUPPORTED_METADATA_VERSIONS.includes(metadataVersion.toNumber())) {
+                metadataVersion = null;
+            }
+            if (metadataVersion) {
+                try {
+                    const metadataBytes = at
+                        ? await firstValueFrom(this._rpcCore.state.call.raw('Metadata_metadata_at_version', util.u8aToHex(metadataVersion.toU8a()), at))
+                        : await firstValueFrom(this._rpcCore.state.call('Metadata_metadata_at_version', util.u8aToHex(metadataVersion.toU8a())));
+                    const rawMeta = at
+                        ? typeRegistry.createType('Raw', metadataBytes).toU8a()
+                        : metadataBytes;
+                    const opaqueMetadata = typeRegistry.createType('Option<OpaqueMetadata>', rawMeta).unwrapOr(null);
+                    if (opaqueMetadata) {
+                        return new types.Metadata(typeRegistry, opaqueMetadata.toHex());
+                    }
+                }
+                catch (e) {
+                    l.debug(e.message);
+                    l.warn('error with state_call::Metadata_metadata_at_version, rpc::state::get_metadata will be used');
+                }
+            }
+            return at
+                ? new types.Metadata(typeRegistry, await firstValueFrom(this._rpcCore.state.getMetadata.raw(at)))
+                : await firstValueFrom(this._rpcCore.state.getMetadata());
         }
         _subscribeHealth() {
             this._unsubscribeHealth();

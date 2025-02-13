@@ -24,7 +24,7 @@
             type: 'OpaqueMetadata'
         }
     };
-    const runtime$w = {
+    const runtime$z = {
         Metadata: [
             {
                 methods: {
@@ -543,9 +543,9 @@
         }
     };
 
-    const definitions$1a = {
+    const definitions$1d = {
         rpc: {},
-        runtime: runtime$w,
+        runtime: runtime$z,
         types: {
             ...v9,
             ...v10,
@@ -648,7 +648,7 @@
             type: 'ExtrinsicInclusionMode'
         }
     };
-    const runtime$v = {
+    const runtime$y = {
         Core: [
             {
                 methods: {
@@ -729,9 +729,9 @@
         Authority: 'AuthorityOrigin',
         GeneralCouncil: 'CollectiveOrigin'
     };
-    const definitions$19 = {
+    const definitions$1c = {
         rpc: {},
-        runtime: runtime$v,
+        runtime: runtime$y,
         types: {
             ...numberTypes,
             AccountId: 'AccountId32',
@@ -978,7 +978,7 @@
         }
     };
 
-    const definitions$18 = {
+    const definitions$1b = {
         rpc: {},
         types: {
             ...v0$1,
@@ -1001,7 +1001,7 @@
         }
     };
 
-    const runtime$u = {
+    const runtime$x = {
         AssetConversionApi: [
             {
                 methods: {
@@ -1069,15 +1069,15 @@
         ]
     };
 
-    const definitions$17 = {
+    const definitions$1a = {
         rpc: {},
-        runtime: runtime$u,
+        runtime: runtime$x,
         types: {
             TAssetConversion: 'Option<MultiLocation>'
         }
     };
 
-    const runtime$t = {
+    const runtime$w = {
         AssetsApi: [
             {
                 methods: {
@@ -1097,9 +1097,9 @@
         ]
     };
 
-    const definitions$16 = {
+    const definitions$19 = {
         rpc: {},
-        runtime: runtime$t,
+        runtime: runtime$w,
         types: {
             AssetApprovalKey: {
                 owner: 'AccountId',
@@ -1145,7 +1145,7 @@
         }
     };
 
-    const runtime$s = {
+    const runtime$v = {
         AuraApi: [
             {
                 methods: {
@@ -1165,9 +1165,9 @@
         ]
     };
 
-    const definitions$15 = {
+    const definitions$18 = {
         rpc: {},
-        runtime: runtime$s,
+        runtime: runtime$v,
         types: {
             RawAuraPreDigest: {
                 slotNumber: 'u64'
@@ -1175,7 +1175,7 @@
         }
     };
 
-    const definitions$14 = {
+    const definitions$17 = {
         rpc: {},
         types: {
             UncleEntryItem: {
@@ -1241,7 +1241,7 @@
             type: 'Option<Null>'
         }
     };
-    const runtime$r = {
+    const runtime$u = {
         BabeApi: [
             {
                 methods: {
@@ -1268,9 +1268,9 @@
         ]
     };
 
-    const definitions$13 = {
+    const definitions$16 = {
         rpc: rpc$g,
-        runtime: runtime$r,
+        runtime: runtime$u,
         types: {
             AllowedSlots: {
                 _enum: ['PrimarySlots', 'PrimaryAndSecondaryPlainSlots', 'PrimaryAndSecondaryVRFSlots']
@@ -1388,7 +1388,7 @@
         }
     };
 
-    const definitions$12 = {
+    const definitions$15 = {
         rpc: {},
         types: {
             AccountData: {
@@ -1426,11 +1426,11 @@
             },
             WithdrawReasons: {
                 _set: {
-                    TransactionPayment: 1,
-                    Transfer: 2,
-                    Reserve: 4,
-                    Fee: 8,
-                    Tip: 16
+                    TransactionPayment: 0b0000_0001,
+                    Transfer: 0b0000_0010,
+                    Reserve: 0b0000_0100,
+                    Fee: 0b0000_1000,
+                    Tip: 0b0001_0000
                 }
             }
         }
@@ -1454,7 +1454,7 @@
         }
     };
 
-    const BEEFY_V1_V3 = {
+    const BEEFY_V3 = {
         beefy_genesis: {
             description: 'Return the block number where BEEFY consensus is enabled/started',
             params: [],
@@ -1474,6 +1474,14 @@
             ],
             type: 'Option<OpaqueKeyOwnershipProof>'
         },
+        validator_set: {
+            description: 'Return the current active BEEFY validator set',
+            params: [],
+            type: 'Option<ValidatorSet>'
+        }
+    };
+    const BEEFY_V1_V3 = {
+        ...BEEFY_V3,
         submit_report_equivocation_unsigned_extrinsic: {
             description: 'Submits an unsigned extrinsic to report an equivocation.',
             params: [
@@ -1487,11 +1495,23 @@
                 }
             ],
             type: 'Option<Null>'
-        },
-        validator_set: {
-            description: 'Return the current active BEEFY validator set',
-            params: [],
-            type: 'Option<ValidatorSet>'
+        }
+    };
+    const BEEFY_V4 = {
+        ...BEEFY_V3,
+        submit_report_double_voting_unsigned_extrinsic: {
+            description: 'Submits an unsigned extrinsic to report a double voting equivocation.',
+            params: [
+                {
+                    name: 'equivocationProof',
+                    type: 'SpConsensusBeefyDoubleVotingProof'
+                },
+                {
+                    name: 'keyOwnerProof',
+                    type: 'OpaqueKeyOwnershipProof'
+                }
+            ],
+            type: 'Option<Null>'
         }
     };
     const BEEFY_MMR_V1 = {
@@ -1506,8 +1526,12 @@
             type: 'BeefyNextAuthoritySet'
         }
     };
-    const runtime$q = {
+    const runtime$t = {
         BeefyApi: [
+            {
+                methods: BEEFY_V4,
+                version: 4
+            },
             {
                 methods: BEEFY_V1_V3,
                 version: 3
@@ -1529,9 +1553,9 @@
         ]
     };
 
-    const definitions$11 = {
+    const definitions$14 = {
         rpc: rpc$f,
-        runtime: runtime$q,
+        runtime: runtime$t,
         types: {
             BeefyAuthoritySet: {
                 id: 'u64',
@@ -1585,7 +1609,7 @@
         }
     };
 
-    const runtime$p = {
+    const runtime$s = {
         Benchmark: [
             {
                 methods: {
@@ -1615,9 +1639,9 @@
         ]
     };
 
-    const definitions$10 = {
+    const definitions$13 = {
         rpc: {},
-        runtime: runtime$p,
+        runtime: runtime$s,
         types: {
             BenchmarkBatch: {
                 pallet: 'Text',
@@ -1710,7 +1734,7 @@
             type: 'Header'
         }
     };
-    const runtime$o = {
+    const runtime$r = {
         BlockBuilder: [
             {
                 methods: {
@@ -1769,9 +1793,9 @@
         ]
     };
 
-    const definitions$$ = {
+    const definitions$12 = {
         rpc: {},
-        runtime: runtime$o,
+        runtime: runtime$r,
         types: {
             CheckInherentsResult: {
                 okay: 'bool',
@@ -1785,7 +1809,7 @@
         }
     };
 
-    const definitions$_ = {
+    const definitions$11 = {
         rpc: {},
         types: {
             CollectiveOrigin: {
@@ -1812,7 +1836,7 @@
         }
     };
 
-    const definitions$Z = {
+    const definitions$10 = {
         rpc: {},
         types: {
             AuthorityId: 'AccountId',
@@ -1947,7 +1971,7 @@
             type: 'CodeUploadResult'
         }
     };
-    const runtime$n = {
+    const runtime$q = {
         ContractsApi: [
             {
                 methods: {
@@ -2092,9 +2116,9 @@
         ]
     };
 
-    const definitions$Y = {
+    const definitions$$ = {
         rpc: rpc$e,
-        runtime: runtime$n,
+        runtime: runtime$q,
         types: {
             AliveContractInfo: {
                 trieId: 'TrieId',
@@ -2186,16 +2210,16 @@
             ContractCallFlags: {
                 _set: {
                     _bitLength: 32,
-                    ForwardInput: 1,
-                    CloneInput: 2,
-                    TailCall: 4,
-                    AllowReentry: 8
+                    ForwardInput: 0b0000_0001,
+                    CloneInput: 0b0000_0010,
+                    TailCall: 0b0000_0100,
+                    AllowReentry: 0b0000_1000
                 }
             },
             ContractReturnFlags: {
                 _set: {
                     _bitLength: 32,
-                    Revert: 1
+                    Revert: 0x0000_0001
                 }
             },
             ContractStorageKey: '[u8; 32]',
@@ -2523,7 +2547,7 @@
         'Locked5x',
         'Locked6x'
     ];
-    const definitions$X = {
+    const definitions$_ = {
         rpc: {},
         types: {
             AccountVote: {
@@ -2635,7 +2659,7 @@
         }
     };
 
-    const definitions$W = {
+    const definitions$Z = {
         rpc: rpc$d,
         types: {
             BlockStats: {
@@ -2647,7 +2671,7 @@
         }
     };
 
-    const runtime$m = {
+    const runtime$p = {
         AuthorityDiscoveryApi: [
             {
                 methods: {
@@ -2662,13 +2686,13 @@
         ]
     };
 
-    const definitions$V = {
+    const definitions$Y = {
         rpc: {},
-        runtime: runtime$m,
+        runtime: runtime$p,
         types: {}
     };
 
-    const definitions$U = {
+    const definitions$X = {
         rpc: {},
         types: {
             ApprovalFlag: 'u32',
@@ -2740,7 +2764,7 @@
         }
     };
 
-    const definitions$T = {
+    const definitions$W = {
         rpc: rpc$c,
         types: {
             CreatedBlock: {
@@ -2761,7 +2785,7 @@
         }
     };
 
-    const definitions$S = {
+    const definitions$V = {
         rpc: {},
         types: {
             EvmAccount: {
@@ -2852,7 +2876,7 @@
         }
     };
 
-    const definitions$R = {
+    const definitions$U = {
         rpc: {},
         types: {
             Extrinsic: 'GenericExtrinsic',
@@ -2864,6 +2888,9 @@
             ExtrinsicSignatureV4: 'GenericExtrinsicSignatureV4',
             ExtrinsicUnknown: 'GenericExtrinsicUnknown',
             ExtrinsicPayloadUnknown: 'GenericExtrinsicPayloadUnknown',
+            ExtrinsicV5: 'GenericExtrinsicV5',
+            ExtrinsicPayloadV5: 'GenericExtrinsicPayloadV5',
+            ExtrinsicSignatureV5: 'GenericExtrinsicSignatureV5',
             Era: 'ExtrinsicEra',
             ImmortalEra: 'GenericImmortalEra',
             MortalEra: 'GenericMortalEra',
@@ -2883,7 +2910,7 @@
         }
     };
 
-    const runtime$l = {
+    const runtime$o = {
         FungiblesApi: [
             {
                 methods: {
@@ -2910,7 +2937,7 @@
                                 type: 'AccountId'
                             }
                         ],
-                        type: 'Result<XcmVersionedMultiAssets, FungiblesAccessError>'
+                        type: 'Result<XcmVersionedAssets, FungiblesAccessError>'
                     }
                 },
                 version: 2
@@ -2918,9 +2945,9 @@
         ]
     };
 
-    const definitions$Q = {
+    const definitions$T = {
         rpc: {},
-        runtime: runtime$l,
+        runtime: runtime$o,
         types: {
             FungiblesAccessError: {
                 _enum: ['AssetIdConversionFailed', 'AmountToBalanceConversionFailed']
@@ -2928,7 +2955,7 @@
         }
     };
 
-    const definitions$P = {
+    const definitions$S = {
         rpc: {},
         types: {
             AssetOptions: {
@@ -2955,7 +2982,7 @@
         }
     };
 
-    const runtime$k = {
+    const runtime$n = {
         GenesisBuilder: [
             {
                 methods: {
@@ -2980,15 +3007,15 @@
         ]
     };
 
-    const definitions$O = {
+    const definitions$R = {
         rpc: {},
-        runtime: runtime$k,
+        runtime: runtime$n,
         types: {
             GenesisBuildErr: 'Text'
         }
     };
 
-    const definitions$N = {
+    const definitions$Q = {
         rpc: {},
         types: {
             ActiveGilt: {
@@ -3074,7 +3101,7 @@
             type: 'Option<Null>'
         }
     };
-    const runtime$j = {
+    const runtime$m = {
         GrandpaApi: [
             {
                 methods: {
@@ -3094,9 +3121,9 @@
         ]
     };
 
-    const definitions$M = {
+    const definitions$P = {
         rpc: rpc$b,
-        runtime: runtime$j,
+        runtime: runtime$m,
         types: {
             AuthorityIndex: 'u64',
             AuthorityList: 'Vec<NextAuthority>',
@@ -3224,20 +3251,20 @@
         }
     };
 
-    const definitions$L = {
+    const definitions$O = {
         rpc: {},
         types: {
             IdentityFields: {
                 _set: {
                     _bitLength: 64,
-                    Display: 1,
-                    Legal: 2,
-                    Web: 4,
-                    Riot: 8,
-                    Email: 16,
-                    PgpFingerprint: 32,
-                    Image: 64,
-                    Twitter: 128
+                    Display: 0b00000000_00000000_00000000_0000_0001,
+                    Legal: 0b00000000_00000000_00000000_0000_0010,
+                    Web: 0b00000000_00000000_00000000_0000_0100,
+                    Riot: 0b00000000_00000000_00000000_0000_1000,
+                    Email: 0b00000000_00000000_00000000_0001_0000,
+                    PgpFingerprint: 0b00000000_00000000_00000000_0010_0000,
+                    Image: 0b00000000_00000000_00000000_0100_0000,
+                    Twitter: 0b00000000_00000000_00000000_1000_0000
                 }
             },
             IdentityInfoAdditional: '(Data, Data)',
@@ -3295,7 +3322,7 @@
         }
     };
 
-    const definitions$K = {
+    const definitions$N = {
         rpc: {},
         types: {
             AuthIndex: 'u32',
@@ -3322,7 +3349,7 @@
         }
     };
 
-    const definitions$J = {
+    const definitions$M = {
         rpc: {},
         types: {
             CallIndex: '(u8, u8)',
@@ -3336,7 +3363,7 @@
         }
     };
 
-    const runtime$i = {
+    const runtime$l = {
         MixnetApi: [
             {
                 methods: {
@@ -3375,9 +3402,9 @@
         ]
     };
 
-    const definitions$I = {
+    const definitions$L = {
         rpc: {},
-        runtime: runtime$i,
+        runtime: runtime$l,
         types: {
             Mixnode: {
                 externalAddresses: 'Vec<Bytes>',
@@ -3611,7 +3638,7 @@
             type: 'Result<(), MmrError>'
         }
     };
-    const runtime$h = {
+    const runtime$k = {
         MmrApi: [
             {
                 methods: MMR_V2,
@@ -3624,9 +3651,9 @@
         ]
     };
 
-    const definitions$H = {
+    const definitions$K = {
         rpc: rpc$a,
-        runtime: runtime$h,
+        runtime: runtime$k,
         types: {
             MmrBatchProof: {
                 leafIndices: 'Vec<MmrLeafIndex>',
@@ -3658,7 +3685,7 @@
         }
     };
 
-    const runtime$g = {
+    const runtime$j = {
         NftsApi: [
             {
                 methods: {
@@ -3764,16 +3791,16 @@
         ]
     };
 
-    const definitions$G = {
+    const definitions$J = {
         rpc: {},
-        runtime: runtime$g,
+        runtime: runtime$j,
         types: {
             NftCollectionId: 'u32',
             NftItemId: 'u32'
         }
     };
 
-    const runtime$f = {
+    const runtime$i = {
         NominationPoolsApi: [
             {
                 methods: {
@@ -3821,9 +3848,9 @@
         ]
     };
 
-    const definitions$F = {
+    const definitions$I = {
         rpc: {},
-        runtime: runtime$f,
+        runtime: runtime$i,
         types: {
             NpApiError: {
                 _enum: ['MemberNotFound', 'OverflowInPendingRewards']
@@ -3832,7 +3859,7 @@
         }
     };
 
-    const definitions$E = {
+    const definitions$H = {
         rpc: {},
         types: {
             DeferredOffenceOf: '(Vec<OffenceDetails>, Vec<Perbill>, SessionIndex)',
@@ -3848,7 +3875,7 @@
         }
     };
 
-    const runtime$e = {
+    const runtime$h = {
         DifficultyApi: [
             {
                 methods: {
@@ -3875,13 +3902,13 @@
         ]
     };
 
-    const definitions$D = {
+    const definitions$G = {
         rpc: {},
-        runtime: runtime$e,
+        runtime: runtime$h,
         types: {}
     };
 
-    const definitions$C = {
+    const definitions$F = {
         rpc: {},
         types: {
             ProxyDefinition: {
@@ -3900,7 +3927,7 @@
         }
     };
 
-    const definitions$B = {
+    const definitions$E = {
         rpc: {},
         types: {
             ActiveRecovery: {
@@ -3917,7 +3944,7 @@
         }
     };
 
-    const definitions$A = {
+    const definitions$D = {
         rpc: {},
         types: {
             Period: '(BlockNumber, u32)',
@@ -3941,7 +3968,7 @@
         }
     };
 
-    const runtime$d = {
+    const runtime$g = {
         SessionKeys: [
             {
                 methods: {
@@ -3990,9 +4017,9 @@
         SessionKeys10: '(AccountId, AccountId, AccountId, AccountId, AccountId, AccountId, AccountId, AccountId, AccountId, AccountId)',
         SessionKeys10B: '(AccountId, AccountId, AccountId, AccountId, AccountId, AccountId, AccountId, AccountId, AccountId, BeefyKey)'
     };
-    const definitions$z = {
+    const definitions$C = {
         rpc: {},
-        runtime: runtime$d,
+        runtime: runtime$g,
         types: {
             ...keyTypes,
             FullIdentification: 'Exposure',
@@ -4007,7 +4034,7 @@
         }
     };
 
-    const definitions$y = {
+    const definitions$B = {
         rpc: {},
         types: {
             Bid: {
@@ -4034,7 +4061,7 @@
         }
     };
 
-    const runtime$c = {
+    const runtime$f = {
         StakingApi: [
             {
                 methods: {
@@ -4145,6 +4172,11 @@
             electedStashes: 'Vec<AccountId>',
             exposures: 'Vec<(AccountId, Exposure)>'
         },
+        ElectionResultToSpec10: {
+            electedStashes: 'Vec<AccountId>',
+            exposures: 'Vec<(AccountId, Exposure<AccountId, Balance>)>',
+            compute: 'ElectionCompute'
+        },
         ElectionScore: '[u128; 3]',
         ElectionSize: {
             validators: 'Compact<ValidatorIndex>',
@@ -4214,9 +4246,9 @@
         },
         VoteWeight: 'u64'
     };
-    const definitions$x = {
+    const definitions$A = {
         rpc: {},
-        runtime: runtime$c,
+        runtime: runtime$f,
         types: {
             ...deprecated,
             ...phragmen,
@@ -4347,7 +4379,7 @@
         }
     };
 
-    const runtime$b = {
+    const runtime$e = {
         ValidateStatement: [
             {
                 methods: {
@@ -4371,9 +4403,9 @@
         ]
     };
 
-    const definitions$w = {
+    const definitions$z = {
         rpc: {},
-        runtime: runtime$b,
+        runtime: runtime$e,
         types: {
             StatementStoreStatementSource: {
                 _enum: ['Chain', 'Network', 'Local']
@@ -4388,7 +4420,7 @@
         }
     };
 
-    const definitions$v = {
+    const definitions$y = {
         rpc: {},
         types: {
             WeightToFeeCoefficient: {
@@ -4414,7 +4446,7 @@
         }
     };
 
-    const definitions$u = {
+    const definitions$x = {
         rpc: rpc$9,
         types: {}
     };
@@ -4559,7 +4591,7 @@
         }
     };
 
-    const runtime$a = {
+    const runtime$d = {
         AccountNonceApi: [
             {
                 methods: {
@@ -4579,9 +4611,9 @@
         ]
     };
 
-    const definitions$t = {
+    const definitions$w = {
         rpc: rpc$8,
-        runtime: runtime$a,
+        runtime: runtime$d,
         types: {
             AccountInfo: 'AccountInfoWithTripleRefCount',
             AccountInfoWithRefCountU8: {
@@ -4891,7 +4923,7 @@
         }
     };
 
-    const definitions$s = {
+    const definitions$v = {
         rpc: {},
         types: {
             Bounty: {
@@ -4952,14 +4984,14 @@
         }
     };
 
-    const definitions$r = {
+    const definitions$u = {
         rpc: {},
         types: {
             Multiplier: 'Fixed128'
         }
     };
 
-    const runtime$9 = {
+    const runtime$c = {
         TaggedTransactionQueue: [
             {
                 methods: {
@@ -5021,9 +5053,9 @@
         ]
     };
 
-    const definitions$q = {
+    const definitions$t = {
         rpc: {},
-        runtime: runtime$9,
+        runtime: runtime$c,
         types: {
             TransactionSource: {
                 _enum: ['InBlock', 'Local', 'External']
@@ -5039,7 +5071,7 @@
         }
     };
 
-    const definitions$p = {
+    const definitions$s = {
         rpc: {},
         types: {
             ClassId: 'u32',
@@ -5082,7 +5114,7 @@
         }
     };
 
-    const definitions$o = {
+    const definitions$r = {
         rpc: {},
         types: {
             Multisig: {
@@ -5098,7 +5130,7 @@
         }
     };
 
-    const definitions$n = {
+    const definitions$q = {
         rpc: {},
         types: {
             VestingInfo: {
@@ -5109,7 +5141,7 @@
         }
     };
 
-    const definitions$m = {
+    const definitions$p = {
         rpc: {},
         types: {
             BlockAttestations: {
@@ -5128,7 +5160,7 @@
         }
     };
 
-    const definitions$l = {
+    const definitions$o = {
         rpc: {},
         types: {
             BridgedBlockHash: 'H256',
@@ -5214,7 +5246,7 @@
         }
     };
 
-    const definitions$k = {
+    const definitions$n = {
         rpc: {},
         types: {
             StatementKind: {
@@ -5223,7 +5255,7 @@
         }
     };
 
-    const definitions$j = {
+    const definitions$m = {
         rpc: {},
         types: {
             FundIndex: 'u32',
@@ -5250,7 +5282,28 @@
         }
     };
 
-    const runtime$8 = {
+    const runtime$b = {
+        AuraUnincludedSegmentApi: [
+            {
+                methods: {
+                    can_build_upon: {
+                        description: 'Whether it is legal to extend the chain',
+                        params: [
+                            {
+                                name: 'includedHash',
+                                type: 'BlockHash'
+                            },
+                            {
+                                name: 'slot',
+                                type: 'Slot'
+                            }
+                        ],
+                        type: 'bool'
+                    }
+                },
+                version: 1
+            }
+        ],
         CollectCollationInfo: [
             {
                 methods: {
@@ -5308,9 +5361,9 @@
             overweightCount: 'OverweightIndex'
         }
     };
-    const definitions$i = {
+    const definitions$l = {
         rpc: {},
-        runtime: runtime$8,
+        runtime: runtime$b,
         types: dmpQueue
     };
 
@@ -5324,16 +5377,16 @@
         },
         version: 1
     };
-    const runtime$7 = {
+    const runtime$a = {
         KusamaFinalityApi: [finalityV1],
         PolkadotFinalityApi: [finalityV1],
         RococoFinalityApi: [finalityV1],
         WestendFinalityApi: [finalityV1]
     };
 
-    const definitions$h = {
+    const definitions$k = {
         rpc: {},
-        runtime: runtime$7,
+        runtime: runtime$a,
         types: {}
     };
 
@@ -5630,8 +5683,31 @@
             type: 'ApprovalVotingParams'
         }
     };
-    const runtime$6 = {
+    const PH_V11 = {
+        claim_queue: {
+            description: 'Claim queue',
+            params: [],
+            type: 'BTreeMap<CoreIndex, Vec<u32>>'
+        }
+    };
+    const runtime$9 = {
         ParachainHost: [
+            {
+                methods: {
+                    ...PH_V1_TO_V2,
+                    ...PH_V2_TO_V3,
+                    ...PH_V3,
+                    ...PH_V4,
+                    ...PH_V5,
+                    ...PH_V6,
+                    ...PH_V7,
+                    ...PH_V8,
+                    ...PH_V9,
+                    ...PH_V10,
+                    ...PH_V11
+                },
+                version: 11
+            },
             {
                 methods: {
                     ...PH_V1_TO_V2,
@@ -5880,9 +5956,9 @@
             }
         }
     };
-    const definitions$g = {
+    const definitions$j = {
         rpc: {},
-        runtime: runtime$6,
+        runtime: runtime$9,
         types: {
             ...cumulusTypes,
             ...disputeTypes,
@@ -6357,14 +6433,14 @@
         }
     };
 
-    const definitions$f = {
+    const definitions$i = {
         rpc: {},
         types: {
             Approvals: '[bool; 4]'
         }
     };
 
-    const definitions$e = {
+    const definitions$h = {
         rpc: {},
         types: {
             AccountStatus: {
@@ -6376,6 +6452,73 @@
             },
             AccountValidity: {
                 _enum: ['Invalid', 'Initiated', 'Pending', 'ValidLow', 'ValidHigh', 'Completed']
+            }
+        }
+    };
+
+    const runtime$8 = {
+        DryRunApi: [
+            {
+                methods: {
+                    dry_run_call: {
+                        description: 'Dry run call',
+                        params: [
+                            {
+                                name: 'origin',
+                                type: 'OriginCaller'
+                            },
+                            {
+                                name: 'call',
+                                type: 'RuntimeCall'
+                            }
+                        ],
+                        type: 'Result<CallDryRunEffects, XcmDryRunApiError>'
+                    },
+                    dry_run_xcm: {
+                        description: 'Dry run XCM program',
+                        params: [
+                            {
+                                name: 'originLocation',
+                                type: 'VersionedMultiLocation'
+                            },
+                            {
+                                name: 'xcm',
+                                type: 'VersionedXcm'
+                            }
+                        ],
+                        type: 'Result<XcmDryRunEffects, XcmDryRunApiError>'
+                    }
+                },
+                version: 1
+            }
+        ]
+    };
+
+    const definitions$g = {
+        rpc: {},
+        runtime: runtime$8,
+        types: {
+            PostDispatchInfo: {
+                actualWeight: 'Option<Weight>',
+                paysFee: 'Pays'
+            },
+            DispatchResultWithPostInfo: 'Result<PostDispatchInfo, DispatchError>',
+            CallDryRunEffects: {
+                executionResult: 'DispatchResultWithPostInfo',
+                emittedEvents: 'Vec<Event>',
+                localXcm: 'Option<VersionedXcm>',
+                forwardedXcms: 'Vec<(VersionedMultiLocation, Vec<VersionedXcm>)>'
+            },
+            XcmDryRunEffects: {
+                executionResult: 'OutcomeV4',
+                emittedEvents: 'Vec<Event>',
+                forwardedXcms: 'Vec<(VersionedMultiLocation, Vec<VersionedXcm>)>'
+            },
+            XcmDryRunApiError: {
+                _enum: [
+                    'Unimplemented',
+                    'VersionedConversionFailed'
+                ]
             }
         }
     };
@@ -6577,7 +6720,7 @@
 
     const DEFAULT_UINT_BITS = 64;
     const MAX_NUMBER_BITS = 52;
-    const MUL_P = new util.BN(10000);
+    const MUL_P = new util.BN(1_00_00);
     const FORMATTERS = [
         ['Perquintill', util.BN_QUINTILL],
         ['Perbill', util.BN_BILLION],
@@ -6778,7 +6921,7 @@
         }
         return `${fn}: failed at ${util.u8aToHex(u8a.subarray(0, 16))}…${key ? ` on ${key}` : ''} (index ${i + 1}/${count})${type}:: ${message}`;
     }
-    function decodeU8a$6(registry, result, u8a, [Types, keys]) {
+    function decodeU8a$7(registry, result, u8a, [Types, keys]) {
         const count = result.length;
         let offset = 0;
         let i = 0;
@@ -7819,7 +7962,7 @@
             return [result, 0];
         }
         else if (util.isHex(value)) {
-            return decodeU8a$6(registry, result, util.u8aToU8a(value), Classes);
+            return decodeU8a$7(registry, result, util.u8aToU8a(value), Classes);
         }
         else if (!value || !result.length) {
             const Types = Classes[0];
@@ -7840,7 +7983,7 @@
                     : mapToTypeMap(registry, Types));
             super(registry, Classes[0].length);
             this.initialU8aLength = (util.isU8a(value)
-                ? decodeU8a$6(registry, this, value, Classes)
+                ? decodeU8a$7(registry, this, value, Classes)
                 : decodeTuple(registry, this, value, Classes))[1];
             this.__internal__Types = Classes;
         }
@@ -7895,7 +8038,7 @@
         }
     }
 
-    const MAX_LENGTH$2 = 64 * 1024;
+    const MAX_LENGTH$2 = 512 * 1024;
     const l$5 = util.logger('Vec');
     function decodeVecLength(value) {
         if (Array.isArray(value)) {
@@ -8133,14 +8276,14 @@
         }
         toBoolArray() {
             const map = [...this.toU8a(true)].map((v) => [
-                !!(v & 128),
-                !!(v & 64),
-                !!(v & 32),
-                !!(v & 16),
-                !!(v & 8),
-                !!(v & 4),
-                !!(v & 2),
-                !!(v & 1)
+                !!(v & 0b1000_0000),
+                !!(v & 0b0100_0000),
+                !!(v & 0b0010_0000),
+                !!(v & 0b0001_0000),
+                !!(v & 0b0000_1000),
+                !!(v & 0b0000_0100),
+                !!(v & 0b0000_0010),
+                !!(v & 0b0000_0001)
             ]);
             const count = map.length;
             const result = new Array(8 * count);
@@ -8371,7 +8514,7 @@
         for (let i = 0; i < count; i++) {
             types.push(KeyClass, ValClass);
         }
-        const [values, decodedLength] = decodeU8a$6(registry, new Array(types.length), u8a.subarray(offset), [types, []]);
+        const [values, decodedLength] = decodeU8a$7(registry, new Array(types.length), u8a.subarray(offset), [types, []]);
         for (let i = 0, count = values.length; i < count; i += 2) {
             output.set(values[i], values[i + 1]);
         }
@@ -8791,7 +8934,7 @@
         }
     }
 
-    function decodeU8a$5(registry, value) {
+    function decodeU8a$6(registry, value) {
         return value[0] === 0
             ? null
             : new bool(registry, value[0] === 1);
@@ -8799,7 +8942,7 @@
     class OptionBool extends Option {
         constructor(registry, value) {
             super(registry, bool, util.isU8a(value) || util.isHex(value)
-                ? decodeU8a$5(registry, util.u8aToU8a(value))
+                ? decodeU8a$6(registry, util.u8aToU8a(value))
                 : value);
             this.initialU8aLength = 1;
         }
@@ -10000,7 +10143,7 @@
         });
     }
 
-    const XCM_MAPPINGS = ['AssetInstance', 'Fungibility', 'Junction', 'Junctions', 'MultiAsset', 'MultiAssetFilter', 'MultiLocation', 'Response', 'WildFungibility', 'WildMultiAsset', 'Xcm', 'XcmError', 'XcmOrder'];
+    const XCM_MAPPINGS = ['AssetInstance', 'Fungibility', 'Junction', 'Junctions', 'MultiAsset', 'MultiAssetFilter', 'MultiLocation', 'Response', 'WildFungibility', 'WildMultiAsset', 'Xcm', 'XcmError'];
     function mapXcmTypes(version) {
         return XCM_MAPPINGS.reduce((all, key) => util.objectSpread(all, { [key]: `${key}${version}` }), {});
     }
@@ -10441,25 +10584,148 @@
     };
 
     const v2 = {
-        AssetInstanceV2: 'AssetInstanceV1',
-        FungibilityV2: 'FungibilityV1',
-        JunctionV2: 'JunctionV1',
-        JunctionsV2: 'JunctionsV1',
-        MultiAssetsV2: 'MultiAssetsV1',
-        MultiAssetV2: 'MultiAssetV1',
-        MultiAssetFilterV2: 'MultiAssetFilterV1',
-        MultiLocationV2: 'MultiLocationV1',
-        OriginKindV2: 'OriginKindV1',
-        WildFungibilityV2: 'WildFungibilityV1',
+        AssetIdV2: {
+            _enum: {
+                Concrete: 'MultiLocationV2',
+                Abstract: 'Bytes'
+            }
+        },
+        AssetInstanceV2: {
+            _enum: {
+                Undefined: 'Null',
+                Index: 'Compact<u128>',
+                Array4: '[u8;4]',
+                Array8: '[u8;8]',
+                Array16: '[u8;16]',
+                Array32: '[u8;32]',
+                Blob: 'Bytes'
+            }
+        },
+        BodyIdV2: {
+            _enum: {
+                Unit: 'Null',
+                Named: 'Bytes',
+                Index: 'Compact<u32>',
+                Executive: 'Null',
+                Technical: 'Null',
+                Legislative: 'Null',
+                Judicial: 'Null',
+                Defense: 'Null',
+                Administration: 'Null',
+                Treasury: 'Null'
+            }
+        },
+        BodyPartV2: {
+            _enum: {
+                Voice: 'Null',
+                Members: {
+                    count: 'Compact<u32>'
+                },
+                Fraction: {
+                    nom: 'Compact<u32>',
+                    denom: 'Compact<u32>'
+                },
+                AtLeastProportion: {
+                    nom: 'Compact<u32>',
+                    denom: 'Compact<u32>'
+                },
+                MoreThanProportion: {
+                    nom: 'Compact<u32>',
+                    denom: 'Compact<u32>'
+                }
+            }
+        },
+        NetworkIdV2: {
+            _enum: {
+                Any: 'Null',
+                Named: 'Bytes',
+                Polkadot: 'Null',
+                Kusama: 'Null'
+            }
+        },
+        JunctionV2: {
+            _enum: {
+                Parachain: 'Compact<u32>',
+                AccountId32: {
+                    network: 'NetworkIdV2',
+                    id: '[u8; 32]'
+                },
+                AccountIndex64: {
+                    network: 'NetworkIdV2',
+                    index: 'Compact<u64>'
+                },
+                AccountKey20: {
+                    network: 'NetworkIdV2',
+                    key: '[u8; 20]'
+                },
+                PalletInstance: 'u8',
+                GeneralIndex: 'Compact<u128>',
+                GeneralKey: 'Bytes',
+                OnlyChild: 'Null',
+                Plurality: {
+                    id: 'BodyIdV2',
+                    part: 'BodyPartV2'
+                }
+            }
+        },
+        JunctionsV2: {
+            _enum: {
+                Here: 'Null',
+                X1: 'JunctionV2',
+                X2: '(JunctionV2, JunctionV2)',
+                X3: '(JunctionV2, JunctionV2, JunctionV2)',
+                X4: '(JunctionV2, JunctionV2, JunctionV2, JunctionV2)',
+                X5: '(JunctionV2, JunctionV2, JunctionV2, JunctionV2, JunctionV2)',
+                X6: '(JunctionV2, JunctionV2, JunctionV2, JunctionV2, JunctionV2, JunctionV2)',
+                X7: '(JunctionV2, JunctionV2, JunctionV2, JunctionV2, JunctionV2, JunctionV2, JunctionV2)',
+                X8: '(JunctionV2, JunctionV2, JunctionV2, JunctionV2, JunctionV2, JunctionV2, JunctionV2, JunctionV2)'
+            }
+        },
+        FungibilityV2: {
+            _enum: {
+                Fungible: 'Compact<u128>',
+                NonFungible: 'AssetInstanceV2'
+            }
+        },
+        InteriorMultiLocationV2: 'JunctionsV2',
+        MultiAssetV2: {
+            id: 'AssetIdV2',
+            fun: 'FungibilityV2'
+        },
+        MultiAssetsV2: 'Vec<MultiAssetV2>',
+        MultiAssetFilterV2: {
+            _enum: {
+                Definite: 'MultiAssetsV2',
+                Wild: 'WildMultiAssetV2'
+            }
+        },
+        MultiLocationV2: {
+            parents: 'u8',
+            interior: 'JunctionsV2'
+        },
+        OriginKindV2: {
+            _enum: {
+                Native: 'Null',
+                SovereignAccount: 'Null',
+                Superuser: 'Null',
+                Xcm: 'Null'
+            }
+        },
+        WildFungibilityV2: {
+            _enum: {
+                Fungible: 'Null',
+                NonFungible: 'Null'
+            }
+        },
         ResponseV2: {
             _enum: {
                 Null: 'Null',
                 Assets: 'MultiAssetsV2',
-                ExecutionResult: 'ResponseV2Result'
+                ExecutionResult: 'Option<(u32, XcmErrorV2)>',
+                Version: 'u32'
             }
         },
         ResponseV2Error: '(u32, XcmErrorV2)',
-        ResponseV2Result: 'Result<Null, ResponseV2Error>',
         WeightLimitV2: {
             _enum: {
                 Unlimited: 'Null',
@@ -10486,8 +10752,8 @@
                     xcm: 'XcmV2'
                 },
                 Transact: {
-                    originType: 'OriginKindV2',
-                    requireWeightAtMost: 'u64',
+                    originType: 'XcmOriginKind',
+                    requireWeightAtMost: 'Compact<u64>',
                     call: 'DoubleEncodedCall'
                 },
                 HrmpNewChannelOpenRequest: {
@@ -10504,7 +10770,7 @@
                     recipient: 'Compact<u32>'
                 },
                 ClearOrigin: 'Null',
-                DescendOrigin: 'InteriorMultiLocation',
+                DescendOrigin: 'InteriorMultiLocationV2',
                 ReportError: {
                     queryId: 'Compact<u64>',
                     dest: 'MultiLocationV2',
@@ -10512,12 +10778,12 @@
                 },
                 DepositAsset: {
                     assets: 'MultiAssetFilterV2',
-                    maxAssets: 'u32',
+                    maxAssets: 'Compact<u32>',
                     beneficiary: 'MultiLocationV2'
                 },
                 DepositReserveAsset: {
                     assets: 'MultiAssetFilterV2',
-                    maxAssets: 'u32',
+                    maxAssets: 'Compact<u32>',
                     dest: 'MultiLocationV2',
                     xcm: 'XcmV2'
                 },
@@ -10536,70 +10802,726 @@
                     xcm: 'XcmV2'
                 },
                 QueryHolding: {
-                    query_id: 'Compact<u64>',
+                    queryId: 'Compact<u64>',
                     dest: 'MultiLocationV2',
                     assets: 'MultiAssetFilterV2',
-                    maxResponse_Weight: 'Compact<u64>'
+                    maxResponseWeight: 'Compact<u64>'
                 },
                 BuyExecution: {
                     fees: 'MultiAssetV2',
                     weightLimit: 'WeightLimitV2'
                 },
                 RefundSurplus: 'Null',
-                SetErrorHandler: 'XcmV2',
-                SetAppendix: 'XcmV2',
+                SetErrorHandler: 'XcmV2<RuntimeCall>',
+                SetAppendix: 'XcmV2<RuntimeCall>',
                 ClearError: 'Null',
                 ClaimAsset: {
                     assets: 'MultiAssetsV2',
                     ticket: 'MultiLocationV2'
                 },
-                Trap: 'u64'
+                Trap: 'Compact<u64>',
+                SubscribeVersion: {
+                    queryId: 'Compact<u64>',
+                    maxResponseWeight: 'Compact<u64>'
+                },
+                UnsubscribeVersion: 'Null'
             }
         },
-        WildMultiAssetV2: 'WildMultiAssetV1',
+        WildMultiAssetV2: {
+            _enum: {
+                All: 'Null',
+                AllOf: {
+                    id: 'AssetIdV2',
+                    fun: 'WildFungibilityV2'
+                }
+            }
+        },
         XcmV2: 'Vec<InstructionV2>',
         XcmErrorV2: {
             _enum: {
-                Undefined: 'Null',
                 Overflow: 'Null',
                 Unimplemented: 'Null',
-                UnhandledXcmVersion: 'Null',
-                UnhandledXcmMessage: 'Null',
-                UnhandledEffect: 'Null',
-                EscalationOfPrivilege: 'Null',
                 UntrustedReserveLocation: 'Null',
                 UntrustedTeleportLocation: 'Null',
-                DestinationBufferOverflow: 'Null',
                 MultiLocationFull: 'Null',
                 MultiLocationNotInvertible: 'Null',
-                FailedToDecode: 'Null',
                 BadOrigin: 'Null',
-                ExceedsMaxMessageSize: 'Null',
+                InvalidLocation: 'Null',
+                AssetNotFound: 'Null',
                 FailedToTransactAsset: 'Null',
-                WeightLimitReached: 'Weight',
-                Wildcard: 'Null',
-                TooMuchWeightRequired: 'Null',
-                NotHoldingFees: 'Null',
-                WeightNotComputable: 'Null',
-                Barrier: 'Null',
                 NotWithdrawable: 'Null',
                 LocationCannotHold: 'Null',
-                TooExpensive: 'Null',
-                AssetNotFound: 'Null',
+                ExceedsMaxMessageSize: 'Null',
                 DestinationUnsupported: 'Null',
-                RecursionLimitReached: 'Null',
                 Transport: 'Null',
                 Unroutable: 'Null',
-                UnknownWeightRequired: 'Null',
-                Trap: 'u64',
                 UnknownClaim: 'Null',
-                InvalidLocation: 'Null'
+                FailedToDecode: 'Null',
+                MaxWeightInvalid: 'Null',
+                NotHoldingFees: 'Null',
+                TooExpensive: 'Null',
+                Trap: 'u64',
+                UnhandledXcmVersion: 'Null',
+                WeightLimitReached: 'Weight',
+                Barrier: 'Null',
+                WeightNotComputable: 'Null'
             }
-        },
-        XcmOrderV2: 'XcmOrderV1'
+        }
     };
 
-    const XCM_LATEST = 'V2';
+    const v3 = {
+        AssetIdV3: {
+            _enum: {
+                Concrete: 'MultiLocationV3',
+                Abstract: 'Bytes'
+            }
+        },
+        BodyIdV3: {
+            _enum: {
+                Unit: 'Null',
+                Moniker: '[u8;4]',
+                Index: 'Compact<u32>',
+                Executive: 'Null',
+                Technical: 'Null',
+                Legislative: 'Null',
+                Judicial: 'Null',
+                Defense: 'Null',
+                Administration: 'Null',
+                Treasury: 'Null'
+            }
+        },
+        BodyPartV3: {
+            _enum: {
+                Voice: 'Null',
+                Members: {
+                    count: 'Compact<u32>'
+                },
+                Fraction: {
+                    nom: 'Compact<u32>',
+                    denom: 'Compact<u32>'
+                },
+                AtLeastProportion: {
+                    nom: 'Compact<u32>',
+                    denom: 'Compact<u32>'
+                },
+                MoreThanProportion: {
+                    nom: 'Compact<u32>',
+                    denom: 'Compact<u32>'
+                }
+            }
+        },
+        AssetInstanceV3: {
+            _enum: {
+                Undefined: 'Null',
+                Index: 'Compact<u128>',
+                Array4: '[u8;4]',
+                Array8: '[u8;8]',
+                Array16: '[u8;16]',
+                Array32: '[u8;32]'
+            }
+        },
+        FungibilityV3: {
+            _enum: {
+                Fungible: 'Compact<u128>',
+                NonFungible: 'AssetInstanceV3'
+            }
+        },
+        InteriorMultiLocationV3: 'JunctionsV3',
+        JunctionV3: {
+            _enum: {
+                Parachain: 'Compact<u32>',
+                AccountId32: {
+                    network: 'Option<NetworkIdV3>',
+                    id: '[u8;32]'
+                },
+                AccountIndex64: {
+                    network: 'Option<NetworkIdV3>',
+                    index: 'Compact<u64>'
+                },
+                AccountKey20: {
+                    network: 'Option<NetworkIdV3>',
+                    key: '[u8;20]'
+                },
+                PalletInstance: 'u8',
+                GeneralIndex: 'Compact<u128>',
+                GeneralKey: {
+                    length: 'u8',
+                    data: '[u8;32]'
+                },
+                OnlyChild: 'Null',
+                Plurality: {
+                    id: 'BodyIdV3',
+                    part: 'BodyPartV3'
+                },
+                GlobalConsensus: 'NetworkIdV3'
+            }
+        },
+        JunctionsV3: {
+            _enum: {
+                Here: 'Null',
+                X1: 'JunctionV3',
+                X2: '(JunctionV3, JunctionV3)',
+                X3: '(JunctionV3, JunctionV3, JunctionV3)',
+                X4: '(JunctionV3, JunctionV3, JunctionV3, JunctionV3)',
+                X5: '(JunctionV3, JunctionV3, JunctionV3, JunctionV3, JunctionV3)',
+                X6: '(JunctionV3, JunctionV3, JunctionV3, JunctionV3, JunctionV3, JunctionV3)',
+                X7: '(JunctionV3, JunctionV3, JunctionV3, JunctionV3, JunctionV3, JunctionV3, JunctionV3)',
+                X8: '(JunctionV3, JunctionV3, JunctionV3, JunctionV3, JunctionV3, JunctionV3, JunctionV3, JunctionV3)'
+            }
+        },
+        MaybeErrorCodeV3: {
+            _enum: {
+                Success: 'Null',
+                Error: 'Bytes',
+                TruncatedError: 'Bytes'
+            }
+        },
+        MaxPalletsInfo: 'u32',
+        MultiAssetV3: {
+            id: 'AssetIdV3',
+            fun: 'FungibilityV3'
+        },
+        MultiAssetsV3: 'Vec<MultiAssetV3>',
+        MultiAssetFilterV3: {
+            _enum: {
+                Definite: 'MultiAssetsV3',
+                Wild: 'WildMultiAssetV3'
+            }
+        },
+        MultiLocationV3: {
+            parents: 'u8',
+            interior: 'JunctionsV3'
+        },
+        MaxPalletNameLen: 'u32',
+        NetworkIdV3: {
+            _enum: {
+                ByGenesis: '[u8;32]',
+                ByFork: {
+                    blockNumber: 'u64',
+                    blockHash: '[u8;32]'
+                },
+                Polkadot: 'Null',
+                Kusama: 'Null',
+                Westend: 'Null',
+                Rococo: 'Null',
+                Wococo: 'Null',
+                Ethereum: {
+                    chainId: 'Compact<u64>'
+                },
+                BitcoinCore: 'Null',
+                BitcoinCash: 'Null',
+                PolkadotBulletin: 'Null'
+            }
+        },
+        OriginKindV3: 'OriginKindV2',
+        PalletInfoV3: {
+            index: 'Compact<u32>',
+            name: 'Bytes',
+            moduleName: 'Bytes',
+            major: 'Compact<u32>',
+            minor: 'Compact<u32>',
+            patch: 'Compact<u32>'
+        },
+        WildFungibilityV3: 'WildFungibilityV2',
+        QueryResponseInfoV3: {
+            destination: 'MultiLocationV3',
+            queryId: 'Compact<u64>',
+            maxWeight: 'WeightV2'
+        },
+        ResponseV3: {
+            _enum: {
+                Null: 'Null',
+                Assets: 'MultiAssetsV3',
+                ExecutionResult: 'Option<(u32,XcmErrorV3)>',
+                Version: 'u32',
+                PalletsInfo: 'Vec<PalletInfoV3>',
+                DispatchResult: 'MaybeErrorCodeV3'
+            }
+        },
+        XcmErrorV3: {
+            _enum: {
+                Overflow: 'Null',
+                Unimplemented: 'Null',
+                UntrustedReserveLocation: 'Null',
+                UntrustedTeleportLocation: 'Null',
+                LocationFull: 'Null',
+                LocationNotInvertible: 'Null',
+                BadOrigin: 'Null',
+                InvalidLocation: 'Null',
+                AssetNotFound: 'Null',
+                FailedToTransactAsset: 'Null',
+                NotWithdrawable: 'Null',
+                LocationCannotHold: 'Null',
+                ExceedsMaxMessageSize: 'Null',
+                DestinationUnsupported: 'Null',
+                Transport: 'Null',
+                Unroutable: 'Null',
+                UnknownClaim: 'Null',
+                FailedToDecode: 'Null',
+                MaxWeightInvalid: 'Null',
+                NotHoldingFees: 'Null',
+                TooExpensive: 'Null',
+                Trap: 'u64',
+                ExpectationFalse: 'Null',
+                PalletNotFound: 'Null',
+                NameMismatch: 'Null',
+                VersionIncompatible: 'Null',
+                HoldingWouldOverflow: 'Null',
+                ExportError: 'Null',
+                ReanchorFailed: 'Null',
+                NoDeal: 'Null',
+                FeesNotMet: 'Null',
+                LockError: 'Null',
+                NoPermission: 'Null',
+                Unanchored: 'Null',
+                NotDepositable: 'Null',
+                UnhandledXcmVersion: 'Null',
+                WeightLimitReached: 'WeightV2',
+                Barrier: 'Null',
+                ExceedsStackLimit: 'Null'
+            }
+        },
+        ResponseV3Error: '(u32, XcmErrorV3)',
+        ResponseV3Result: 'Option<(u32, ResponseV3Error)>',
+        WeightLimitV3: {
+            _enum: {
+                Unlimited: 'Null',
+                Limited: 'WeightV2'
+            }
+        },
+        InstructionV3: {
+            _enum: {
+                WithdrawAsset: 'MultiAssetsV3',
+                ReserveAssetDeposited: 'MultiAssetsV3',
+                ReceiveTeleportedAsset: 'MultiAssetsV3',
+                QueryResponse: {
+                    queryId: 'Compact<u64>',
+                    response: 'ResponseV3',
+                    maxWeight: 'WeightV2',
+                    querier: 'Option<MultiLocationV3>'
+                },
+                TransferAsset: {
+                    assets: 'MultiAssetsV3',
+                    beneficiary: 'MultiLocationV3'
+                },
+                TransferReserveAsset: {
+                    assets: 'MultiAssetsV3',
+                    dest: 'MultiLocationV3',
+                    xcm: 'XcmV3'
+                },
+                Transact: {
+                    originKind: 'XcmOriginKind',
+                    requireWeightAtMost: 'WeightV2',
+                    call: 'DoubleEncodedCall'
+                },
+                HrmpNewChannelOpenRequest: {
+                    sender: 'Compact<u32>',
+                    maxMessageSize: 'Compact<u32>',
+                    maxCapacity: 'Compact<u32>'
+                },
+                HrmpChannelAccepted: {
+                    recipient: 'Compact<u32>'
+                },
+                HrmpChannelClosing: {
+                    initiator: 'Compact<u32>',
+                    sender: 'Compact<u32>',
+                    recipient: 'Compact<u32>'
+                },
+                ClearOrigin: 'Null',
+                DescendOrigin: 'JunctionsV3',
+                ReportError: 'QueryResponseInfoV3',
+                DepositAsset: {
+                    assets: 'MultiAssetFilterV3',
+                    beneficiary: 'MultiLocationV3'
+                },
+                DepositReserveAsset: {
+                    assets: 'MultiAssetFilterV3',
+                    dest: 'MultiLocationV3',
+                    xcm: 'XcmV3'
+                },
+                ExchangeAsset: {
+                    give: 'MultiAssetFilterV3',
+                    want: 'MultiAssetsV3',
+                    maximal: 'bool'
+                },
+                InitiateReserveWithdraw: {
+                    assets: 'MultiAssetFilterV3',
+                    reserve: 'MultiLocationV3',
+                    xcm: 'XcmV3'
+                },
+                InitiateTeleport: {
+                    assets: 'MultiAssetFilterV3',
+                    dest: 'MultiLocationV3',
+                    xcm: 'XcmV3'
+                },
+                ReportHolding: {
+                    responseInfo: 'QueryResponseInfoV3',
+                    assets: 'MultiAssetFilterV3'
+                },
+                BuyExecution: {
+                    fees: 'MultiAssetV3',
+                    weightLimit: 'WeightLimitV3'
+                },
+                RefundSurplus: 'Null',
+                SetErrorHandler: 'XcmV3<RuntimeCall>',
+                SetAppendix: 'XcmV3<RuntimeCall>',
+                ClearError: 'Null',
+                ClaimAsset: {
+                    assets: 'MultiAssetsV3',
+                    ticket: 'MultiLocationV3'
+                },
+                Trap: 'Compact<u64>',
+                SubscribeVersion: {
+                    queryId: 'Compact<u64>',
+                    maxResponseWeight: 'WeightV2'
+                },
+                UnsubscribeVersion: 'Null',
+                BurnAsset: 'MultiAssetsV3',
+                ExpectAsset: 'MultiAssetsV3',
+                ExpectOrigin: 'Option<MultiLocationV3>',
+                ExpectError: 'Option<(u32, XcmErrorV3)>',
+                ExpectTransactStatus: 'MaybeErrorCodeV3',
+                QueryPallet: {
+                    moduleName: 'Vec<u8>',
+                    responseInfo: 'QueryResponseInfoV3'
+                },
+                ExpectPallet: {
+                    index: 'Compact<u32>',
+                    name: 'Vec<u8>',
+                    moduleName: 'Vec<u8>',
+                    crateMajor: 'Compact<u32>',
+                    minCrateMinor: 'Compact<u32>'
+                },
+                ReportTransactStatus: 'QueryResponseInfoV3',
+                ClearTransactStatus: 'Null',
+                UniversalOrigin: 'JunctionV3',
+                ExportMessage: {
+                    network: 'NetworkIdV3',
+                    destination: 'JunctionsV3',
+                    xcm: 'XcmV3'
+                },
+                LockAsset: {
+                    asset: 'MultiAssetV3',
+                    unlocker: 'MultiLocationV3'
+                },
+                UnlockAsset: {
+                    asset: 'MultiAssetV3',
+                    target: 'MultiLocationV3'
+                },
+                NoteUnlockable: {
+                    asset: 'MultiAssetV3',
+                    owner: 'MultiLocationV3'
+                },
+                RequestUnlock: {
+                    asset: 'MultiAssetV3',
+                    locker: 'MultiLocationV3'
+                },
+                SetFeesMode: {
+                    jitWithdraw: 'bool'
+                },
+                SetTopic: '[u8; 32]',
+                ClearTopic: 'Null',
+                AliasOrigin: 'MultiLocationV3',
+                UnpaidExecution: {
+                    weightLimit: 'WeightLimitV3',
+                    checkOrigin: 'Option<MultiLocationV3>'
+                }
+            }
+        },
+        WildMultiAssetV3: {
+            _enum: {
+                All: 'Null',
+                AllOf: {
+                    id: 'AssetIdV3',
+                    fun: 'WildFungibilityV2'
+                },
+                AllCounted: 'Compact<u32>',
+                AllOfCounted: {
+                    id: 'AssetIdV3',
+                    fun: 'WildFungibilityV2',
+                    count: 'Compact<u32>'
+                }
+            }
+        },
+        VersionV3: 'u32',
+        XcmV3: 'Vec<InstructionV3>'
+    };
+
+    const v4 = {
+        AssetIdV4: 'MultiLocationV4',
+        AssetInstanceV4: {
+            _enum: {
+                Undefined: 'Null',
+                Index: 'Compact<u128>',
+                Array4: '[u8;4]',
+                Array8: '[u8;8]',
+                Array16: '[u8;16]',
+                Array32: '[u8;32]'
+            }
+        },
+        FungibilityV4: {
+            _enum: {
+                Fungible: 'Compact<u128>',
+                NonFungible: 'AssetInstanceV4'
+            }
+        },
+        UncheckedFungibilityV4: {
+            _enum: {
+                Fungible: 'Compact<u128>',
+                NonFungible: 'AssetInstanceV4'
+            }
+        },
+        JunctionV4: {
+            _enum: {
+                Parachain: 'Compact<u32>',
+                AccountId32: {
+                    network: 'Option<NetworkIdV4>',
+                    id: '[u8;32]'
+                },
+                AccountIndex64: {
+                    network: 'Option<NetworkIdV4>',
+                    index: 'Compact<u64>'
+                },
+                AccountKey20: {
+                    network: 'Option<NetworkIdV4>',
+                    key: '[u8;20]'
+                },
+                PalletInstance: 'u8',
+                GeneralIndex: 'Compact<u128>',
+                GeneralKey: {
+                    length: 'u8',
+                    data: '[u8;32]'
+                },
+                OnlyChild: 'Null',
+                Plurality: {
+                    id: 'BodyIdV3',
+                    part: 'BodyPartV3'
+                },
+                GlobalConsensus: 'NetworkIdV4'
+            }
+        },
+        JunctionsV4: {
+            _enum: {
+                Here: 'Null',
+                X1: '[JunctionV4;1]',
+                X2: '[JunctionV4;2]',
+                X3: '[JunctionV4;3]',
+                X4: '[JunctionV4;4]',
+                X5: '[JunctionV4;5]',
+                X6: '[JunctionV4;6]',
+                X7: '[JunctionV4;7]',
+                X8: '[JunctionV4;8]'
+            }
+        },
+        MaxPalletsInfo: 'u32',
+        NetworkIdV4: 'NetworkIdV3',
+        MultiAssetV4: {
+            id: 'AssetIdV4',
+            fun: 'FungibilityV4'
+        },
+        MultiAssetsV4: 'Vec<MultiAssetV4>',
+        MultiAssetFilterV4: {
+            _enum: {
+                Definite: 'MultiAssetsV4',
+                Wild: 'WildMultiAssetV4'
+            }
+        },
+        MultiLocationV4: {
+            parents: 'u8',
+            interior: 'JunctionsV4'
+        },
+        OriginKindV4: 'XcmOriginKind',
+        PalletInfoV4: 'PalletInfoV3',
+        WildFungibilityV4: 'WildFungibilityV2',
+        QueryResponseInfoV4: {
+            destination: 'MultiLocationV4',
+            queryId: 'Compact<u64>',
+            maxWeight: 'WeightV2'
+        },
+        ResponseV4: {
+            _enum: {
+                Null: 'Null',
+                Assets: 'MultiAssetsV4',
+                ExecutionResult: 'Option<(u32, XcmErrorV3)>',
+                Version: 'u32',
+                PalletsInfo: 'Vec<PalletInfoV4>',
+                DispatchResult: 'MaybeErrorCodeV3'
+            }
+        },
+        InstructionV4: {
+            _enum: {
+                WithdrawAsset: 'MultiAssetsV4',
+                ReserveAssetDeposited: 'MultiAssetsV4',
+                ReceiveTeleportedAsset: 'MultiAssetsV4',
+                QueryResponse: {
+                    queryId: 'Compact<u64>',
+                    response: 'ResponseV4',
+                    maxWeight: 'WeightV2',
+                    querier: 'Option<MultiLocationV4>'
+                },
+                TransferAsset: {
+                    assets: 'MultiAssetsV4',
+                    beneficiary: 'MultiLocationV4'
+                },
+                TransferReserveAsset: {
+                    assets: 'MultiAssetsV4',
+                    dest: 'MultiLocationV4',
+                    xcm: 'XcmV4'
+                },
+                Transact: {
+                    originKind: 'OriginKindV4',
+                    requireWeightAtMost: 'WeightV2',
+                    call: 'DoubleEncodedCall'
+                },
+                HrmpNewChannelOpenRequest: {
+                    sender: 'Compact<u32>',
+                    maxMessageSize: 'Compact<u32>',
+                    maxCapacity: 'Compact<u32>'
+                },
+                HrmpChannelAccepted: {
+                    recipient: 'Compact<u32>'
+                },
+                HrmpChannelClosing: {
+                    initiator: 'Compact<u32>',
+                    sender: 'Compact<u32>',
+                    recipient: 'Compact<u32>'
+                },
+                ClearOrigin: 'Null',
+                DescendOrigin: 'JunctionsV4',
+                ReportError: 'QueryResponseInfoV4',
+                DepositAsset: {
+                    assets: 'MultiAssetFilterV4',
+                    beneficiary: 'MultiLocationV4'
+                },
+                DepositReserveAsset: {
+                    assets: 'MultiAssetFilterV4',
+                    dest: 'MultiLocationV4',
+                    xcm: 'XcmV4'
+                },
+                ExchangeAsset: {
+                    give: 'MultiAssetFilterV4',
+                    want: 'MultiAssetsV4',
+                    maximal: 'bool'
+                },
+                InitiateReserveWithdraw: {
+                    assets: 'MultiAssetFilterV4',
+                    reserve: 'MultiLocationV4',
+                    xcm: 'XcmV4'
+                },
+                InitiateTeleport: {
+                    assets: 'MultiAssetFilterV4',
+                    dest: 'MultiLocationV4',
+                    xcm: 'XcmV4'
+                },
+                ReportHolding: {
+                    responseInfo: 'QueryResponseInfoV4',
+                    assets: 'MultiAssetFilterV4'
+                },
+                BuyExecution: {
+                    fees: 'MultiAssetV4',
+                    weightLimit: 'WeightLimitV3'
+                },
+                RefundSurplus: 'Null',
+                SetErrorHandler: 'XcmV4',
+                SetAppendix: 'XcmV4',
+                ClearError: 'Null',
+                ClaimAsset: {
+                    assets: 'MultiAssetsV4',
+                    ticket: 'MultiLocationV4'
+                },
+                Trap: 'Compact<u64>',
+                SubscribeVersion: {
+                    queryId: 'Compact<u64>',
+                    maxResponseWeight: 'WeightV2'
+                },
+                UnsubscribeVersion: 'Null',
+                BurnAsset: 'MultiAssetsV4',
+                ExpectAsset: 'MultiAssetsV4',
+                ExpectOrigin: 'Option<MultiLocationV4>',
+                ExpectError: 'Option<(u32, XcmErrorV3)>',
+                ExpectTransactStatus: 'MaybeErrorCodeV3',
+                QueryPallet: {
+                    moduleName: 'Vec<u8>',
+                    responseInfo: 'QueryResponseInfoV4'
+                },
+                ExpectPallet: {
+                    index: 'Compact<u32>',
+                    name: 'Vec<u8>',
+                    moduleName: 'Vec<u8>',
+                    crateMajor: 'Compact<u32>',
+                    minCrateMinor: 'Compact<u32>'
+                },
+                ReportTransactStatus: 'QueryResponseInfoV4',
+                ClearTransactStatus: 'Null',
+                UniversalOrigin: 'JunctionV4',
+                ExportMessage: {
+                    network: 'NetworkIdV4',
+                    destination: 'JunctionsV4',
+                    xcm: 'XcmV4'
+                },
+                LockAsset: {
+                    asset: 'MultiAssetV4',
+                    unlocker: 'MultiLocationV4'
+                },
+                UnlockAsset: {
+                    asset: 'MultiAssetV4',
+                    target: 'MultiLocationV4'
+                },
+                NoteUnlockable: {
+                    asset: 'MultiAssetV4',
+                    owner: 'MultiLocationV4'
+                },
+                RequestUnlock: {
+                    asset: 'MultiAssetV4',
+                    locker: 'MultiLocationV4'
+                },
+                SetFeesMode: {
+                    jitWithdraw: 'bool'
+                },
+                SetTopic: '[u8;32]',
+                ClearTopic: 'Null',
+                AliasOrigin: 'MultiLocationV4',
+                UnpaidExecution: {
+                    weightLimit: 'WeightLimitV3',
+                    checkOrigin: 'Option<MultiLocationV4>'
+                }
+            }
+        },
+        OutcomeV4: {
+            _enum: {
+                Complete: {
+                    used: 'WeightV2'
+                },
+                Incomplete: {
+                    used: 'WeightV2',
+                    error: 'XcmErrorV3'
+                },
+                Error: {
+                    error: 'XcmErrorV3'
+                }
+            }
+        },
+        WildMultiAssetV4: {
+            _enum: {
+                All: 'Null',
+                AllOf: {
+                    id: 'AssetIdV4',
+                    fun: 'WildFungibilityV4'
+                },
+                AllCounted: 'Compact<u32>',
+                AllOfCounted: {
+                    id: 'AssetIdV4',
+                    fun: 'WildFungibilityV4',
+                    count: 'Compact<u32>'
+                }
+            }
+        },
+        VersionV4: 'u32',
+        XcmV4: 'Vec<InstructionV4>',
+        XcmErrorV4: 'XcmErrorV3'
+    };
+
+    const XCM_LATEST = 'V4';
     const xcm = {
         XcmOrigin: {
             _enum: {
@@ -10663,7 +11585,7 @@
             }
         }
     };
-    const definitions$d = {
+    const definitions$f = {
         rpc: {},
         types: {
             ...location,
@@ -10671,9 +11593,11 @@
             ...v0,
             ...v1,
             ...v2,
+            ...v3,
+            ...v4,
             ...mapXcmTypes(XCM_LATEST),
             DoubleEncodedCall: {
-                encoded: 'Vec<u8>'
+                encoded: 'Bytes'
             },
             XcmOriginKind: {
                 _enum: ['Native', 'SovereignAccount', 'Superuser', 'Xcm']
@@ -10718,36 +11642,136 @@
                 _enum: {
                     V0: 'MultiAssetV0',
                     V1: 'MultiAssetV1',
-                    V2: 'MultiAssetV2'
+                    V2: 'MultiAssetV2',
+                    V3: 'MultiAssetV3',
+                    V4: 'MultiAssetV4'
                 }
             },
             VersionedMultiAssets: {
                 _enum: {
                     V0: 'Vec<MultiAssetV0>',
                     V1: 'MultiAssetsV1',
-                    V2: 'MultiAssetsV2'
+                    V2: 'MultiAssetsV2',
+                    V3: 'MultiAssetsV3',
+                    V4: 'MultiAssetsV4'
                 }
             },
             VersionedMultiLocation: {
                 _enum: {
                     V0: 'MultiLocationV0',
                     V1: 'MultiLocationV1',
-                    V2: 'MultiLocationV2'
+                    V2: 'MultiLocationV2',
+                    V3: 'MultiLocationV3',
+                    V4: 'MultiLocationV4'
                 }
             },
             VersionedResponse: {
                 V0: 'ResponseV0',
                 V1: 'ResponseV1',
-                V2: 'ResponseV2'
+                V2: 'ResponseV2',
+                V3: 'ResponseV3',
+                V4: 'ResponseV4'
             },
             VersionedXcm: {
                 _enum: {
                     V0: 'XcmV0',
                     V1: 'XcmV1',
-                    V2: 'XcmV2'
+                    V2: 'XcmV2',
+                    V3: 'XcmV3',
+                    V4: 'XcmV4'
                 }
             },
             XcmVersion: 'u32'
+        }
+    };
+
+    const runtime$7 = {
+        XcmPaymentApi: [
+            {
+                methods: {
+                    query_acceptable_payment_assets: {
+                        description: 'The API to query acceptable payment assets',
+                        params: [
+                            {
+                                name: 'version',
+                                type: 'u32'
+                            }
+                        ],
+                        type: 'Result<Vec<XcmVersionedAssetId>, XcmPaymentApiError>'
+                    },
+                    query_weight_to_asset_fee: {
+                        description: '',
+                        params: [
+                            {
+                                name: 'weight',
+                                type: 'WeightV2'
+                            },
+                            {
+                                name: 'asset',
+                                type: 'XcmVersionedAssetId'
+                            }
+                        ],
+                        type: 'Result<u128, XcmPaymentApiError>'
+                    },
+                    query_xcm_weight: {
+                        description: '',
+                        params: [
+                            {
+                                name: 'message',
+                                type: 'XcmVersionedXcm'
+                            }
+                        ],
+                        type: 'Result<WeightV2, XcmPaymentApiError>'
+                    }
+                },
+                version: 1
+            }
+        ]
+    };
+
+    const definitions$e = {
+        rpc: {},
+        runtime: runtime$7,
+        types: {
+            XcmPaymentApiError: {
+                _enum: [
+                    'Unimplemented',
+                    'VersionedConversionFailed',
+                    'WeightNotComputable',
+                    'UnhandledXcmVersion',
+                    'AssetNotFound'
+                ]
+            }
+        }
+    };
+
+    const runtime$6 = {
+        LocationToAccountApi: [
+            {
+                methods: {
+                    convert_location: {
+                        description: 'Converts `Location` to `AccountId`',
+                        params: [
+                            {
+                                name: 'location',
+                                type: 'XcmVersionedLocation'
+                            }
+                        ],
+                        type: 'Result<AccountId, Error>'
+                    }
+                },
+                version: 1
+            }
+        ]
+    };
+
+    const definitions$d = {
+        rpc: {},
+        runtime: runtime$6,
+        types: {
+            Error: {
+                _enum: ['Unsupported', 'VersionedConversionFailed']
+            }
         }
     };
 
@@ -12750,6 +13774,21 @@
     };
 
     const rpc$2 = {
+        localStorageClear: {
+            description: 'Clear offchain local storage under given key and prefix',
+            isUnsafe: true,
+            params: [
+                {
+                    name: 'kind',
+                    type: 'StorageKind'
+                },
+                {
+                    name: 'key',
+                    type: 'Bytes'
+                }
+            ],
+            type: 'Null'
+        },
         localStorageGet: {
             description: 'Get offchain local storage under given key and prefix',
             isUnsafe: true,
@@ -13568,80 +14607,83 @@
 
     const definitions = /*#__PURE__*/Object.freeze({
         __proto__: null,
-        assetConversion: definitions$17,
-        assets: definitions$16,
-        attestations: definitions$m,
-        aura: definitions$15,
+        assetConversion: definitions$1a,
+        assets: definitions$19,
+        attestations: definitions$p,
+        aura: definitions$18,
         author: definitions$6,
-        authorship: definitions$14,
-        babe: definitions$13,
-        balances: definitions$12,
-        beefy: definitions$11,
-        benchmark: definitions$10,
-        blockbuilder: definitions$$,
-        bridges: definitions$l,
+        authorship: definitions$17,
+        babe: definitions$16,
+        balances: definitions$15,
+        beefy: definitions$14,
+        benchmark: definitions$13,
+        blockbuilder: definitions$12,
+        bridges: definitions$o,
         chain: definitions$5,
         childstate: definitions$4,
-        claims: definitions$k,
-        collective: definitions$_,
-        consensus: definitions$Z,
-        contracts: definitions$Y,
+        claims: definitions$n,
+        collective: definitions$11,
+        consensus: definitions$10,
+        contracts: definitions$$,
         contractsAbi: definitions$c,
-        crowdloan: definitions$j,
-        cumulus: definitions$i,
-        democracy: definitions$X,
-        dev: definitions$W,
-        discovery: definitions$V,
-        elections: definitions$U,
-        engine: definitions$T,
+        crowdloan: definitions$m,
+        cumulus: definitions$l,
+        democracy: definitions$_,
+        dev: definitions$Z,
+        discovery: definitions$Y,
+        dryRunApi: definitions$g,
+        elections: definitions$X,
+        engine: definitions$W,
         eth: definitions$b,
-        evm: definitions$S,
-        extrinsics: definitions$R,
-        finality: definitions$h,
-        fungibles: definitions$Q,
-        genericAsset: definitions$P,
-        genesisBuilder: definitions$O,
-        gilt: definitions$N,
-        grandpa: definitions$M,
-        identity: definitions$L,
-        imOnline: definitions$K,
-        lottery: definitions$J,
-        metadata: definitions$1a,
-        mixnet: definitions$I,
-        mmr: definitions$H,
-        nfts: definitions$G,
+        evm: definitions$V,
+        extrinsics: definitions$U,
+        finality: definitions$k,
+        fungibles: definitions$T,
+        genericAsset: definitions$S,
+        genesisBuilder: definitions$R,
+        gilt: definitions$Q,
+        grandpa: definitions$P,
+        identity: definitions$O,
+        imOnline: definitions$N,
+        lottery: definitions$M,
+        metadata: definitions$1d,
+        mixnet: definitions$L,
+        mmr: definitions$K,
+        nfts: definitions$J,
         nimbus: definitions$a,
-        nompools: definitions$F,
+        nompools: definitions$I,
         offchain: definitions$3,
-        offences: definitions$E,
+        offences: definitions$H,
         ormlOracle: definitions$9,
         ormlTokens: definitions$8,
-        parachains: definitions$g,
+        parachains: definitions$j,
         payment: definitions$2,
-        poll: definitions$f,
-        pow: definitions$D,
-        proxy: definitions$C,
-        purchase: definitions$e,
-        recovery: definitions$B,
+        poll: definitions$i,
+        pow: definitions$G,
+        proxy: definitions$F,
+        purchase: definitions$h,
+        recovery: definitions$E,
         rpc: definitions$7,
-        runtime: definitions$19,
-        scaleInfo: definitions$18,
-        scheduler: definitions$A,
-        session: definitions$z,
-        society: definitions$y,
-        staking: definitions$x,
+        runtime: definitions$1c,
+        scaleInfo: definitions$1b,
+        scheduler: definitions$D,
+        session: definitions$C,
+        society: definitions$B,
+        staking: definitions$A,
         state: definitions$1,
-        statement: definitions$w,
-        support: definitions$v,
-        syncstate: definitions$u,
-        system: definitions$t,
-        treasury: definitions$s,
-        txpayment: definitions$r,
-        txqueue: definitions$q,
-        uniques: definitions$p,
-        utility: definitions$o,
-        vesting: definitions$n,
-        xcm: definitions$d
+        statement: definitions$z,
+        support: definitions$y,
+        syncstate: definitions$x,
+        system: definitions$w,
+        treasury: definitions$v,
+        txpayment: definitions$u,
+        txqueue: definitions$t,
+        uniques: definitions$s,
+        utility: definitions$r,
+        vesting: definitions$q,
+        xcm: definitions$f,
+        xcmPaymentApi: definitions$e,
+        xcmRuntimeApi: definitions$d
     });
 
     const jsonrpc = {};
@@ -13687,9 +14729,7 @@
         'ink::env::types::*',
         'ink::primitives::types::*',
         'ink_env::types::*',
-        'ink_primitives::types::*',
-        'np_runtime::accountname::AccountName',
-        'np_runtime::universaladdress::UniversalAddress'
+        'ink_primitives::types::*'
     ]);
     const PATHS_SET = splitNamespace([
         'pallet_identity::types::BitFlags'
@@ -14513,7 +15553,7 @@
         }));
     }
 
-    const packageInfo = { name: '@polkadot/types', path: (({ url: (typeof document === 'undefined' && typeof location === 'undefined' ? require('u' + 'rl').pathToFileURL(__filename).href : typeof document === 'undefined' ? location.href : (_documentCurrentScript && _documentCurrentScript.src || new URL('bundle-polkadot-types.js', document.baseURI).href)) }) && (typeof document === 'undefined' && typeof location === 'undefined' ? require('u' + 'rl').pathToFileURL(__filename).href : typeof document === 'undefined' ? location.href : (_documentCurrentScript && _documentCurrentScript.src || new URL('bundle-polkadot-types.js', document.baseURI).href))) ? new URL((typeof document === 'undefined' && typeof location === 'undefined' ? require('u' + 'rl').pathToFileURL(__filename).href : typeof document === 'undefined' ? location.href : (_documentCurrentScript && _documentCurrentScript.src || new URL('bundle-polkadot-types.js', document.baseURI).href))).pathname.substring(0, new URL((typeof document === 'undefined' && typeof location === 'undefined' ? require('u' + 'rl').pathToFileURL(__filename).href : typeof document === 'undefined' ? location.href : (_documentCurrentScript && _documentCurrentScript.src || new URL('bundle-polkadot-types.js', document.baseURI).href))).pathname.lastIndexOf('/') + 1) : 'auto', type: 'esm', version: '11.1.1' };
+    const packageInfo = { name: '@polkadot/types', path: (({ url: (typeof document === 'undefined' && typeof location === 'undefined' ? require('u' + 'rl').pathToFileURL(__filename).href : typeof document === 'undefined' ? location.href : (_documentCurrentScript && _documentCurrentScript.src || new URL('bundle-polkadot-types.js', document.baseURI).href)) }) && (typeof document === 'undefined' && typeof location === 'undefined' ? require('u' + 'rl').pathToFileURL(__filename).href : typeof document === 'undefined' ? location.href : (_documentCurrentScript && _documentCurrentScript.src || new URL('bundle-polkadot-types.js', document.baseURI).href))) ? new URL((typeof document === 'undefined' && typeof location === 'undefined' ? require('u' + 'rl').pathToFileURL(__filename).href : typeof document === 'undefined' ? location.href : (_documentCurrentScript && _documentCurrentScript.src || new URL('bundle-polkadot-types.js', document.baseURI).href))).pathname.substring(0, new URL((typeof document === 'undefined' && typeof location === 'undefined' ? require('u' + 'rl').pathToFileURL(__filename).href : typeof document === 'undefined' ? location.href : (_documentCurrentScript && _documentCurrentScript.src || new URL('bundle-polkadot-types.js', document.baseURI).href))).pathname.lastIndexOf('/') + 1) : 'auto', type: 'esm', version: '15.5.2' };
 
     function flattenUniq(list, result = []) {
         for (let i = 0, count = list.length; i < count; i++) {
@@ -14899,91 +15939,59 @@
         }
     }
 
-    const EXTRINSIC_VERSION = 4;
-    class GenericExtrinsicV4 extends Struct {
-        constructor(registry, value, { isSigned } = {}) {
-            super(registry, {
-                signature: 'ExtrinsicSignatureV4',
-                method: 'Call'
-            }, GenericExtrinsicV4.decodeExtrinsic(registry, value, isSigned));
-        }
-        static decodeExtrinsic(registry, value, isSigned = false) {
-            if (value instanceof GenericExtrinsicV4) {
-                return value;
-            }
-            else if (value instanceof registry.createClassUnsafe('Call')) {
-                return { method: value };
-            }
-            else if (util.isU8a(value)) {
-                const signature = registry.createTypeUnsafe('ExtrinsicSignatureV4', [value, { isSigned }]);
-                const method = registry.createTypeUnsafe('Call', [value.subarray(signature.encodedLength)]);
-                return {
-                    method,
-                    signature
-                };
-            }
-            return value || {};
-        }
-        get encodedLength() {
-            return this.toU8a().length;
-        }
-        get method() {
-            return this.getT('method');
-        }
-        get signature() {
-            return this.getT('signature');
-        }
-        get version() {
-            return EXTRINSIC_VERSION;
-        }
-        addSignature(signer, signature, payload) {
-            this.signature.addSignature(signer, signature, payload);
-            return this;
-        }
-        sign(account, options) {
-            this.signature.sign(this.method, account, options);
-            return this;
-        }
-        signFake(signer, options) {
-            this.signature.signFake(this.method, signer, options);
-            return this;
-        }
-    }
-
     const BIT_SIGNED = 0b10000000;
     const BIT_UNSIGNED = 0;
     const EMPTY_U8A = new Uint8Array();
-    const DEFAULT_VERSION = 4;
     const IMMORTAL_ERA = new Uint8Array([0]);
     const UNMASK_VERSION = 0b01111111;
+    const DEFAULT_PREAMBLE = 'bare';
+    const LATEST_EXTRINSIC_VERSION = 5;
+    const VERSION_MASK = 0b00111111;
+    const TYPE_MASK = 0b11000000;
+    const BARE_EXTRINSIC = 0b00000000;
+    const GENERAL_EXTRINSIC = 0b01000000;
+    const LOWEST_SUPPORTED_EXTRINSIC_FORMAT_VERSION = 4;
 
     const VERSIONS$1 = [
         'ExtrinsicUnknown',
         'ExtrinsicUnknown',
         'ExtrinsicUnknown',
         'ExtrinsicUnknown',
-        'ExtrinsicV4'
+        'ExtrinsicV4',
+        'ExtrinsicV5'
     ];
-    function newFromValue(registry, value, version) {
+    const PREAMBLE = {
+        bare: 'ExtrinsicV5',
+        general: 'GeneralExtrinsic'
+    };
+    const PreambleMask = {
+        bare: BARE_EXTRINSIC,
+        general: GENERAL_EXTRINSIC
+    };
+    const preambleUnMask = {
+        0: 'bare',
+        64: 'general'
+    };
+    function newFromValue(registry, value, version, preamble) {
         if (value instanceof GenericExtrinsic) {
             return value.unwrap();
         }
         const isSigned = (version & BIT_SIGNED) === BIT_SIGNED;
-        const type = VERSIONS$1[version & UNMASK_VERSION] || VERSIONS$1[0];
+        const type = (version & VERSION_MASK) === 5 ? PREAMBLE[preamble] : VERSIONS$1[version & VERSION_MASK] || VERSIONS$1[0];
         return registry.createTypeUnsafe(type, [value, { isSigned, version }]);
     }
-    function decodeExtrinsic(registry, value, version = DEFAULT_VERSION) {
+    function decodeExtrinsic(registry, value, version = LOWEST_SUPPORTED_EXTRINSIC_FORMAT_VERSION, preamble = DEFAULT_PREAMBLE) {
         if (util.isU8a(value) || Array.isArray(value) || util.isHex(value)) {
-            return decodeU8a$4(registry, util.u8aToU8a(value), version);
+            return decodeU8a$5(registry, util.u8aToU8a(value), version, preamble);
         }
         else if (value instanceof registry.createClassUnsafe('Call')) {
-            return newFromValue(registry, { method: value }, version);
+            return newFromValue(registry, { method: value }, version, preamble);
         }
-        return newFromValue(registry, value, version);
+        return newFromValue(registry, value, version, preamble);
     }
-    function decodeU8a$4(registry, value, version) {
+    function decodeU8a$5(registry, value, version, preamble) {
         if (!value.length) {
-            return newFromValue(registry, new Uint8Array(), version);
+            return newFromValue(registry, new Uint8Array(), version, preamble);
         }
         const [offset, length] = util.compactFromU8a(value);
         const total = offset + length.toNumber();
@@ -14991,16 +15999,30 @@
             throw new Error(`Extrinsic: length less than remainder, expected at least ${total}, found ${value.length}`);
         }
         const data = value.subarray(offset, total);
-        return newFromValue(registry, data.subarray(1), data[0]);
+        const unmaskedPreamble = data[0] & TYPE_MASK;
+        if (preambleUnMask[`${unmaskedPreamble}`] === 'general') {
+            return newFromValue(registry, value, data[0], preambleUnMask[`${unmaskedPreamble}`] || preamble);
+        }
+        else {
+            return newFromValue(registry, data.subarray(1), data[0], preambleUnMask[`${unmaskedPreamble}`] || preamble);
+        }
     }
     class ExtrinsicBase extends AbstractBase {
-        constructor(registry, value, initialU8aLength) {
+        __internal__preamble;
+        constructor(registry, value, initialU8aLength, preamble) {
             super(registry, value, initialU8aLength);
             const signKeys = Object.keys(registry.getSignedExtensionTypes());
-            const getter = (key) => this.inner.signature[key];
-            for (let i = 0, count = signKeys.length; i < count; i++) {
-                util.objectProperty(this, signKeys[i], getter);
+            if (this.version === 5 && preamble !== 'general') {
+                const getter = (key) => this.inner.signature[key];
+                for (let i = 0, count = signKeys.length; i < count; i++) {
+                    util.objectProperty(this, signKeys[i], getter);
+                }
             }
+            const unmaskedPreamble = this.type & TYPE_MASK;
+            this.__internal__preamble = preamble || preambleUnMask[`${unmaskedPreamble}`];
+        }
+        isGeneral() {
+            return this.__internal__preamble === 'general';
         }
         get args() {
             return this.method.args;
@@ -15015,13 +16037,17 @@
             return this.method.data;
         }
         get era() {
-            return this.inner.signature.era;
+            return this.isGeneral()
+                ? this.inner.era
+                : this.inner.signature.era;
         }
         get encodedLength() {
             return this.toU8a().length;
         }
         get isSigned() {
-            return this.inner.signature.isSigned;
+            return this.isGeneral()
+                ? false
+                : this.inner.signature.isSigned;
         }
         get length() {
             return this.toU8a(true).length;
@@ -15033,22 +16059,41 @@
             return this.inner.method;
         }
         get nonce() {
-            return this.inner.signature.nonce;
+            return this.isGeneral()
+                ? this.inner.nonce
+                : this.inner.signature.nonce;
         }
         get signature() {
+            if (this.isGeneral()) {
+                throw new Error('Extrinsic: GeneralExtrinsic does not have signature implemented');
+            }
             return this.inner.signature.signature;
         }
         get signer() {
+            if (this.isGeneral()) {
+                throw new Error('Extrinsic: GeneralExtrinsic does not have signer implemented');
+            }
             return this.inner.signature.signer;
         }
         get tip() {
-            return this.inner.signature.tip;
+            return this.isGeneral()
+                ? this.inner.tip
+                : this.inner.signature.tip;
         }
         get assetId() {
-            return this.inner.signature.assetId;
+            return this.isGeneral()
+                ? this.inner.assetId
+                : this.inner.signature.assetId;
         }
         get metadataHash() {
-            return this.inner.signature.metadataHash;
+            return this.isGeneral()
+                ? this.inner.metadataHash
+                : this.inner.signature.metadataHash;
+        }
+        get mode() {
+            return this.isGeneral()
+                ? this.inner.mode
+                : this.inner.signature.mode;
         }
         get type() {
             return this.inner.version;
@@ -15057,7 +16102,15 @@
             return this.unwrap();
         }
         get version() {
-            return this.type | (this.isSigned ? BIT_SIGNED : BIT_UNSIGNED);
+            if (this.type <= LOWEST_SUPPORTED_EXTRINSIC_FORMAT_VERSION) {
+                return this.type | (this.isSigned ? BIT_SIGNED : BIT_UNSIGNED);
+            }
+            else {
+                if (this.isSigned) {
+                    throw new Error('Signed Extrinsics are currently only available for ExtrinsicV4');
+                }
+                return this.type | (this.isGeneral() ? PreambleMask.general : PreambleMask.bare);
+            }
         }
         is(other) {
             return this.method.is(other);
@@ -15068,9 +16121,9 @@
     }
     class GenericExtrinsic extends ExtrinsicBase {
         __internal__hashCache;
-        static LATEST_EXTRINSIC_VERSION = EXTRINSIC_VERSION;
-        constructor(registry, value, { version } = {}) {
-            super(registry, decodeExtrinsic(registry, value, version));
+        static LATEST_EXTRINSIC_VERSION = LATEST_EXTRINSIC_VERSION;
+        constructor(registry, value, { preamble, version } = {}) {
+            super(registry, decodeExtrinsic(registry, value, version || registry.metadata.extrinsic.version?.toNumber(), preamble), undefined, preamble);
         }
         get hash() {
             if (!this.__internal__hashCache) {
@@ -15114,6 +16167,7 @@
                     assetId: this.assetId ? this.assetId.toHuman(isExpanded, disableAscii) : null,
                     era: this.era.toHuman(isExpanded, disableAscii),
                     metadataHash: this.metadataHash ? this.metadataHash.toHex() : null,
+                    mode: this.mode ? this.mode.toHuman() : null,
                     nonce: this.nonce.toHuman(isExpanded, disableAscii),
                     signature: this.signature.toHex(),
                     signer: this.signer.toHuman(isExpanded, disableAscii),
@@ -15301,17 +16355,37 @@
         'ExtrinsicPayloadUnknown',
         'ExtrinsicPayloadUnknown',
         'ExtrinsicPayloadUnknown',
-        'ExtrinsicPayloadV4'
+        'ExtrinsicPayloadV4',
+        'ExtrinsicPayloadV5'
     ];
-    function decodeExtrinsicPayload(registry, value, version = DEFAULT_VERSION) {
+    const PREAMBLES = {
+        bare: 'ExtrinsicPayloadV5',
+        general: 'ExtrinsicPayloadV5'
+    };
+    function decodeAssetId(registry, payload) {
+        const maybeAsset = payload?.assetId;
+        if (maybeAsset && util.isHex(maybeAsset)) {
+            const assetId = registry.createType('TAssetConversion', util.hexToU8a(maybeAsset));
+            if (maybeAsset === '0x00' || maybeAsset === '0x01' + assetId.toHex().slice(2)) {
+                return {
+                    ...payload,
+                    assetId: assetId.toJSON()
+                };
+            }
+        }
+        return payload;
+    }
+    function decodeExtrinsicPayload(registry, value, version = LATEST_EXTRINSIC_VERSION, preamble = DEFAULT_PREAMBLE) {
         if (value instanceof GenericExtrinsicPayload) {
             return value.unwrap();
         }
-        return registry.createTypeUnsafe(VERSIONS[version] || VERSIONS[0], [value, { version }]);
+        const extVersion = version === 5 ? PREAMBLES[preamble] : VERSIONS[version] || VERSIONS[0];
+        const payload = decodeAssetId(registry, value);
+        return registry.createTypeUnsafe(extVersion, [payload, { version }]);
     }
     class GenericExtrinsicPayload extends AbstractBase {
-        constructor(registry, value, { version } = {}) {
-            super(registry, decodeExtrinsicPayload(registry, value, version));
+        constructor(registry, value, { preamble, version } = {}) {
+            super(registry, decodeExtrinsicPayload(registry, value, version, preamble));
         }
         get blockHash() {
             return this.inner.blockHash;
@@ -15403,7 +16477,7 @@
         __internal__extraTypes;
         constructor(registry, value) {
             const extensionTypes = util.objectSpread({}, registry.getSignedExtensionTypes(), registry.getSignedExtensionExtra());
-            super(registry, util.objectSpread({}, extensionTypes, knownTypes), value);
+            super(registry, util.objectSpread({}, extensionTypes, knownTypes, { withSignedTransaction: 'bool' }), value);
             this.__internal__extraTypes = {};
             const getter = (key) => this.get(key);
             for (const [key, type] of Object.entries(extensionTypes)) {
@@ -15455,6 +16529,10 @@
         get metadataHash() {
             return this.getT('metadataHash');
         }
+        get withSignedTransaction() {
+            const val = this.getT('withSignedTransaction');
+            return val.isTrue;
+        }
         toPayload() {
             const result = {};
             const keys = Object.keys(this.__internal__extraTypes);
@@ -15467,7 +16545,7 @@
             }
             return util.objectSpread(result, {
                 address: this.address.toString(),
-                assetId: this.assetId ? this.assetId.toJSON() : null,
+                assetId: this.assetId && this.assetId.isSome ? this.assetId.toHex() : null,
                 blockHash: this.blockHash.toHex(),
                 blockNumber: this.blockNumber.toHex(),
                 era: this.era.toHex(),
@@ -15480,7 +16558,8 @@
                 specVersion: this.runtimeVersion.specVersion.toHex(),
                 tip: this.tip.toHex(),
                 transactionVersion: this.runtimeVersion.transactionVersion.toHex(),
-                version: this.version.toNumber()
+                version: this.version.toNumber(),
+                withSignedTransaction: this.withSignedTransaction
             });
         }
         toRaw() {
@@ -15496,6 +16575,57 @@
         }
     }
 
+    const EXTRINSIC_VERSION$1 = 4;
+    class GenericExtrinsicV4 extends Struct {
+        constructor(registry, value, { isSigned } = {}) {
+            super(registry, {
+                signature: 'ExtrinsicSignatureV4',
+                method: 'Call'
+            }, GenericExtrinsicV4.decodeExtrinsic(registry, value, isSigned));
+        }
+        static decodeExtrinsic(registry, value, isSigned = false) {
+            if (value instanceof GenericExtrinsicV4) {
+                return value;
+            }
+            else if (value instanceof registry.createClassUnsafe('Call')) {
+                return { method: value };
+            }
+            else if (util.isU8a(value)) {
+                const signature = registry.createTypeUnsafe('ExtrinsicSignatureV4', [value, { isSigned }]);
+                const method = registry.createTypeUnsafe('Call', [value.subarray(signature.encodedLength)]);
+                return {
+                    method,
+                    signature
+                };
+            }
+            return value || {};
+        }
+        get encodedLength() {
+            return this.toU8a().length;
+        }
+        get method() {
+            return this.getT('method');
+        }
+        get signature() {
+            return this.getT('signature');
+        }
+        get version() {
+            return EXTRINSIC_VERSION$1;
+        }
+        addSignature(signer, signature, payload) {
+            this.signature.addSignature(signer, signature, payload);
+            return this;
+        }
+        sign(account, options) {
+            this.signature.sign(this.method, account, options);
+            return this;
+        }
+        signFake(signer, options) {
+            this.signature.signFake(this.method, signer, options);
+            return this;
+        }
+    }
+
     function sign(registry, signerPair, u8a, options) {
         const encoded = u8a.length > 256
             ? registry.hash(u8a)
@@ -15506,7 +16636,7 @@
     class GenericExtrinsicPayloadV4 extends Struct {
         __internal__signOptions;
         constructor(registry, value) {
-            super(registry, util.objectSpread({ method: 'Bytes' }, registry.getSignedExtensionTypes(), registry.getSignedExtensionExtra()), value);
+            super(registry, util.objectSpread({ method: 'Bytes' }, registry.getSignedExtensionTypes(), registry.getSignedExtensionExtra()), decodeAssetId(registry, value));
             this.__internal__signOptions = {
                 withType: registry.createTypeUnsafe('ExtrinsicSignature', []) instanceof Enum
             };
@@ -15602,6 +16732,9 @@
         get assetId() {
             return this.getT('assetId');
         }
+        get mode() {
+            return this.getT('mode');
+        }
         get metadataHash() {
             return this.getT('metadataHash');
         }
@@ -15647,6 +16780,292 @@
             return this.isSigned
                 ? super.toU8a(isBare)
                 : EMPTY_U8A;
+        }
+    }
+
+    const EXTRINSIC_VERSION = 5;
+    class GenericExtrinsicV5 extends Struct {
+        constructor(registry, value, { isSigned } = {}) {
+            super(registry, {
+                signature: 'ExtrinsicSignatureV5',
+                method: 'Call'
+            }, GenericExtrinsicV5.decodeExtrinsic(registry, value, isSigned));
+        }
+        static decodeExtrinsic(registry, value, isSigned = false) {
+            if (value instanceof GenericExtrinsicV5) {
+                return value;
+            }
+            else if (value instanceof registry.createClassUnsafe('Call')) {
+                return { method: value };
+            }
+            else if (util.isU8a(value)) {
+                const signature = registry.createTypeUnsafe('ExtrinsicSignatureV5', [value, { isSigned }]);
+                const method = registry.createTypeUnsafe('Call', [value.subarray(signature.encodedLength)]);
+                return {
+                    method,
+                    signature
+                };
+            }
+            return value || {};
+        }
+        get encodedLength() {
+            return this.toU8a().length;
+        }
+        get method() {
+            return this.getT('method');
+        }
+        get signature() {
+            return this.getT('signature');
+        }
+        get version() {
+            return EXTRINSIC_VERSION;
+        }
+        get preamble() {
+            return this.getT('preamble');
+        }
+        addSignature(_signer, _signature, _payload) {
+            throw new Error('Extrinsic: ExtrinsicV5 does not include signing support');
+        }
+        sign(_account, _options) {
+            throw new Error('Extrinsic: ExtrinsicV5 does not include signing support');
+        }
+        signFake(_signer, _options) {
+            throw new Error('Extrinsic: ExtrinsicV5 does not include signing support');
+        }
+    }
+
+    class GenericExtrinsicPayloadV5 extends Struct {
+        constructor(registry, value) {
+            super(registry, util.objectSpread({ method: 'Bytes' }, registry.getSignedExtensionTypes(), registry.getSignedExtensionExtra()), value);
+        }
+        inspect() {
+            return super.inspect({ method: true });
+        }
+        get blockHash() {
+            return this.getT('blockHash');
+        }
+        get era() {
+            return this.getT('era');
+        }
+        get genesisHash() {
+            return this.getT('genesisHash');
+        }
+        get method() {
+            return this.getT('method');
+        }
+        get nonce() {
+            return this.getT('nonce');
+        }
+        get specVersion() {
+            return this.getT('specVersion');
+        }
+        get tip() {
+            return this.getT('tip');
+        }
+        get transactionVersion() {
+            return this.getT('transactionVersion');
+        }
+        get assetId() {
+            return this.getT('assetId');
+        }
+        get metadataHash() {
+            return this.getT('metadataHash');
+        }
+        sign(_signerPair) {
+            throw new Error('Extrinsic: ExtrinsicV5 does not include signing support');
+        }
+    }
+
+    class GenericExtrinsicSignatureV5 extends Struct {
+        __internal__signKeys;
+        constructor(registry, value, { isSigned } = {}) {
+            const signTypes = registry.getSignedExtensionTypes();
+            super(registry, util.objectSpread(
+            { signer: 'Address', signature: 'ExtrinsicSignature', transactionExtensionVersion: 'u8' }, signTypes), GenericExtrinsicSignatureV5.decodeExtrinsicSignature(value, isSigned));
+            this.__internal__signKeys = Object.keys(signTypes);
+            util.objectProperties(this, this.__internal__signKeys, (k) => this.get(k));
+        }
+        static decodeExtrinsicSignature(value, isSigned = false) {
+            if (!value) {
+                return EMPTY_U8A;
+            }
+            else if (value instanceof GenericExtrinsicSignatureV5) {
+                return value;
+            }
+            return isSigned
+                ? value
+                : EMPTY_U8A;
+        }
+        get encodedLength() {
+            return this.isSigned
+                ? super.encodedLength
+                : 0;
+        }
+        get isSigned() {
+            return !this.signature.isEmpty;
+        }
+        get era() {
+            return this.getT('era');
+        }
+        get nonce() {
+            return this.getT('nonce');
+        }
+        get signature() {
+            return (this.multiSignature.value || this.multiSignature);
+        }
+        get multiSignature() {
+            return this.getT('signature');
+        }
+        get signer() {
+            return this.getT('signer');
+        }
+        get tip() {
+            return this.getT('tip');
+        }
+        get assetId() {
+            return this.getT('assetId');
+        }
+        get mode() {
+            return this.getT('mode');
+        }
+        get metadataHash() {
+            return this.getT('metadataHash');
+        }
+        get transactionExtensionVersion() {
+            return this.getT('transactionExtensionVersion');
+        }
+        _injectSignature(_signer, _signature, _payload) {
+            throw new Error('Extrinsic: ExtrinsicV5 does not include signing support');
+        }
+        addSignature(_signer, _signature, _payload) {
+            throw new Error('Extrinsic: ExtrinsicV5 does not include signing support');
+        }
+        createPayload(method, options) {
+            const { era, runtimeVersion: { specVersion, transactionVersion } } = options;
+            return new GenericExtrinsicPayloadV5(this.registry, util.objectSpread({}, options, {
+                era: era || IMMORTAL_ERA,
+                method: method.toHex(),
+                specVersion,
+                transactionVersion
+            }));
+        }
+        sign(_method, _account, _options) {
+            throw new Error('Extrinsic: ExtrinsicV5 does not include signing support');
+        }
+        signFake(_method, _address, _options) {
+            throw new Error('Extrinsic: ExtrinsicV5 does not include signing support');
+        }
+        toU8a(isBare) {
+            return this.isSigned
+                ? super.toU8a(isBare)
+                : EMPTY_U8A;
+        }
+    }
+
+    function decodeU8a$4(u8a) {
+        if (!u8a.length) {
+            return new Uint8Array();
+        }
+        const [offset, length] = util.compactFromU8a(u8a);
+        const total = offset + length.toNumber();
+        if (total > u8a.length) {
+            throw new Error(`Extrinsic: length less than remainder, expected at least ${total}, found ${u8a.length}`);
+        }
+        const data = u8a.subarray(offset, total);
+        if (data[0] !== 69) {
+            throw new Error(`Extrinsic: incorrect version for General Transactions, expected 5, found ${data[0] & UNMASK_VERSION}`);
+        }
+        return data.subarray(1);
+    }
+    class GeneralExtrinsic extends Struct {
+        __internal__version;
+        __internal__preamble;
+        constructor(registry, value, opt) {
+            const extTypes = registry.getSignedExtensionTypes();
+            super(registry, util.objectSpread({
+                transactionExtensionVersion: 'u8'
+            }, extTypes, {
+                method: 'Call'
+            }), GeneralExtrinsic.decodeExtrinsic(registry, value));
+            this.__internal__version = opt?.version || 0b00000101;
+            this.__internal__preamble = 0b01000000;
+        }
+        static decodeExtrinsic(registry, value) {
+            if (!value) {
+                return EMPTY_U8A;
+            }
+            else if (value instanceof GeneralExtrinsic) {
+                return value;
+            }
+            else if (util.isU8a(value) || Array.isArray(value) || util.isHex(value)) {
+                return decodeU8a$4(util.u8aToU8a(value));
+            }
+            else if (util.isObject(value)) {
+                const { payload, transactionExtensionVersion } = value;
+                return util.objectSpread(payload || {}, {
+                    transactionExtensionVersion: transactionExtensionVersion || registry.getTransactionExtensionVersion()
+                });
+            }
+            return {};
+        }
+        get encodedLength() {
+            return super.encodedLength;
+        }
+        get era() {
+            return this.getT('era');
+        }
+        get nonce() {
+            return this.getT('nonce');
+        }
+        get tip() {
+            return this.getT('tip');
+        }
+        get assetId() {
+            return this.getT('assetId');
+        }
+        get mode() {
+            return this.getT('mode');
+        }
+        get metadataHash() {
+            return this.getT('metadataHash');
+        }
+        get transactionExtensionVersion() {
+            return this.getT('transactionExtensionVersion');
+        }
+        get method() {
+            return this.getT('method');
+        }
+        get version() {
+            return this.__internal__version;
+        }
+        get preamble() {
+            return this.__internal__preamble;
+        }
+        toHex(isBare) {
+            return util.u8aToHex(this.toU8a(isBare));
+        }
+        toU8a(isBare) {
+            return isBare
+                ? this.encode()
+                : util.compactAddLength(this.encode());
+        }
+        toRawType() {
+            return 'GeneralExt';
+        }
+        encode() {
+            return util.u8aConcat(new Uint8Array([this.version | this.preamble]), super.toU8a());
+        }
+        signFake() {
+            throw new Error('Extrinsic: Type GeneralExtrinsic does not have signFake implemented');
+        }
+        addSignature() {
+            throw new Error('Extrinsic: Type GeneralExtrinsic does not have addSignature implemented');
+        }
+        sign() {
+            throw new Error('Extrinsic: Type GeneralExtrinsic does not have sign implemented');
+        }
+        signature() {
+            throw new Error('Extrinsic: Type GeneralExtrinsic does not have the signature getter');
         }
     }
 
@@ -16584,6 +18003,7 @@
         Data: Data,
         F32: f32,
         F64: f64,
+        GeneralExtrinsic: GeneralExtrinsic,
         GenericAccountId: GenericAccountId,
         GenericAccountId32: GenericAccountId,
         GenericAccountId33: GenericAccountId33,
@@ -16602,9 +18022,12 @@
         GenericExtrinsicPayload: GenericExtrinsicPayload,
         GenericExtrinsicPayloadUnknown: GenericExtrinsicPayloadUnknown,
         GenericExtrinsicPayloadV4: GenericExtrinsicPayloadV4,
+        GenericExtrinsicPayloadV5: GenericExtrinsicPayloadV5,
         GenericExtrinsicSignatureV4: GenericExtrinsicSignatureV4,
+        GenericExtrinsicSignatureV5: GenericExtrinsicSignatureV5,
         GenericExtrinsicUnknown: GenericExtrinsicUnknown,
         GenericExtrinsicV4: GenericExtrinsicV4,
+        GenericExtrinsicV5: GenericExtrinsicV5,
         GenericImmortalEra: ImmortalEra,
         GenericLookupSource: GenericLookupSource,
         GenericMortalEra: MortalEra,
@@ -17521,6 +18944,10 @@
             docs: 'Wasm code of the runtime.',
             type: 'Bytes'
         }),
+        defaultChildStorageKeyPrefix: createSubstrateFn('defaultChildStorageKeyPrefix', ':child_storage:default:', {
+            docs: 'Prefix of the default child storage keys in the top trie.',
+            type: 'u32'
+        }),
         extrinsicIndex: createSubstrateFn('extrinsicIndex', ':extrinsic_index', {
             docs: 'Current extrinsic index (u32) is stored under this key.',
             type: 'u32'
@@ -17532,6 +18959,14 @@
         intrablockEntropy: createSubstrateFn('intrablockEntropy', ':intrablock_entropy', {
             docs: 'Current intra-block entropy (a universally unique `[u8; 32]` value) is stored here.',
             type: '[u8; 32]'
+        }),
+        storageVersionStorageKeyPostfix: createSubstrateFn('storageVersionStorageKeyPostfix', ':__STORAGE_VERSION__:', {
+            docs: 'The storage key postfix that is used to store the [`StorageVersion`] per pallet.',
+            type: 'u16'
+        }),
+        transactionLevelKey: createSubstrateFn('transactionLevelKey', ':transaction_level:', {
+            docs: 'The key that holds the current number of active layers.',
+            type: 'u32'
         })
     };
 
@@ -17857,6 +19292,9 @@
         getOrUnknown(name) {
             return this.get(name, true);
         }
+        getTransactionExtensionVersion() {
+            return 0;
+        }
         getSignedExtensionExtra() {
             return expandExtensionTypes(this.__internal__signedExtensions, 'payload', this.__internal__userExtensions);
         }
@@ -17993,6 +19431,7 @@
     exports.Enum = Enum;
     exports.F32 = f32;
     exports.F64 = f64;
+    exports.GeneralExtrinsic = GeneralExtrinsic;
     exports.GenericAccountId = GenericAccountId;
     exports.GenericAccountId32 = GenericAccountId;
     exports.GenericAccountId33 = GenericAccountId33;
@@ -18011,9 +19450,12 @@
     exports.GenericExtrinsicPayload = GenericExtrinsicPayload;
     exports.GenericExtrinsicPayloadUnknown = GenericExtrinsicPayloadUnknown;
     exports.GenericExtrinsicPayloadV4 = GenericExtrinsicPayloadV4;
+    exports.GenericExtrinsicPayloadV5 = GenericExtrinsicPayloadV5;
     exports.GenericExtrinsicSignatureV4 = GenericExtrinsicSignatureV4;
+    exports.GenericExtrinsicSignatureV5 = GenericExtrinsicSignatureV5;
     exports.GenericExtrinsicUnknown = GenericExtrinsicUnknown;
     exports.GenericExtrinsicV4 = GenericExtrinsicV4;
+    exports.GenericExtrinsicV5 = GenericExtrinsicV5;
     exports.GenericImmortalEra = ImmortalEra;
     exports.GenericLookupSource = GenericLookupSource;
     exports.GenericMortalEra = MortalEra;
